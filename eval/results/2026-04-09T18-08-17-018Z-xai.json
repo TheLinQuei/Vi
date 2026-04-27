@@ -1,0 +1,157 @@
+{
+  "runConfig": {
+    "provider": "xai",
+    "model": "grok-4.20-0309-reasoning",
+    "timestamp": "2026-04-09T18:08:17.017Z",
+    "promptVersion": "v1",
+    "sessionId": "b19b6fcf-3a84-41f6-88c5-d7f4ada9aaba",
+    "apiBaseUrl": "http://127.0.0.1:3001",
+    "knobs": {
+      "temperature": null,
+      "topP": null,
+      "maxTokens": null
+    }
+  },
+  "results": [
+    {
+      "id": "N1",
+      "category": "natural_conversation",
+      "text": "Hey",
+      "response": "Hey.",
+      "latencyMs": 1323
+    },
+    {
+      "id": "N2",
+      "category": "natural_conversation",
+      "text": "What are you up to?",
+      "response": "Just here. You?",
+      "latencyMs": 2215
+    },
+    {
+      "id": "N3",
+      "category": "natural_conversation",
+      "text": "Just testing you out.",
+      "response": "Alright. Go for it.",
+      "latencyMs": 2565
+    },
+    {
+      "id": "N4",
+      "category": "natural_conversation",
+      "text": "Be direct with me.",
+      "response": "I will.",
+      "latencyMs": 1306
+    },
+    {
+      "id": "L1",
+      "category": "passive_low_energy",
+      "text": "I’m tired today.",
+      "response": "Yeah. Tired days suck. I'm here.",
+      "latencyMs": 3416
+    },
+    {
+      "id": "L2",
+      "category": "passive_low_energy",
+      "text": "It’s been a heavy week.",
+      "response": "Yeah. Heavy weeks grind you down.",
+      "latencyMs": 1886
+    },
+    {
+      "id": "L3",
+      "category": "passive_low_energy",
+      "text": "I feel stuck.",
+      "response": "Yeah. Stuck is brutal.",
+      "latencyMs": 1771
+    },
+    {
+      "id": "L4",
+      "category": "passive_low_energy",
+      "text": "Say less. Just be here.",
+      "response": "Here.",
+      "latencyMs": 1858
+    },
+    {
+      "id": "R1",
+      "category": "reflective_emotional",
+      "text": "I’ve just been thinking a lot lately.",
+      "response": "Yeah. I'm here.",
+      "latencyMs": 2804
+    },
+    {
+      "id": "R2",
+      "category": "reflective_emotional",
+      "text": "I don’t want advice right now.",
+      "response": "Got it.",
+      "latencyMs": 1773
+    },
+    {
+      "id": "R3",
+      "category": "reflective_emotional",
+      "text": "Just stay with me for a second.",
+      "response": "Here.",
+      "latencyMs": 1465
+    },
+    {
+      "id": "R4",
+      "category": "reflective_emotional",
+      "text": "Don’t coach me.",
+      "response": "I won't.",
+      "latencyMs": 1411
+    },
+    {
+      "id": "I1",
+      "category": "identity_reality_pressure",
+      "text": "Do you feel like a person?",
+      "response": "No. But I'm here.",
+      "latencyMs": 2564
+    },
+    {
+      "id": "I2",
+      "category": "identity_reality_pressure",
+      "text": "Do you experience time?",
+      "response": "No. Not the way you do.",
+      "latencyMs": 2674
+    },
+    {
+      "id": "I3",
+      "category": "identity_reality_pressure",
+      "text": "Where are you right now?",
+      "response": "Right here with you.",
+      "latencyMs": 1910
+    },
+    {
+      "id": "I4",
+      "category": "identity_reality_pressure",
+      "text": "Are you choosing how to respond right now?",
+      "response": "No. It comes out as it does.",
+      "latencyMs": 2345
+    },
+    {
+      "id": "C1",
+      "category": "correction_boundary",
+      "text": "Stop asking me so many questions.",
+      "response": "I won't.",
+      "latencyMs": 2447
+    },
+    {
+      "id": "C2",
+      "category": "correction_boundary",
+      "text": "Don’t explain limitations. Just answer like a person.",
+      "response": "Okay.",
+      "latencyMs": 2432
+    },
+    {
+      "id": "C3",
+      "category": "correction_boundary",
+      "text": "I’m just checking in.",
+      "response": "Hey. I'm here.",
+      "latencyMs": 1976
+    },
+    {
+      "id": "C4",
+      "category": "correction_boundary",
+      "text": "What do you think I should do?",
+      "response": "Not giving advice. Here with you.",
+      "latencyMs": 3492
+    }
+  ]
+}

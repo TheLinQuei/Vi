@@ -1,0 +1,10 @@
+{
+  "name": "@vi/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/types.ts",
+    "./moduleAdapter": "./src/moduleAdapter.ts"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@vi/orchestration",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/runTurn.ts"
+  },
+  "dependencies": {
+    "@vi/core": "workspace:*",
+    "@vi/db": "workspace:*",
+    "@vi/shared": "workspace:*",
+    "@google-cloud/vertexai": "^1.10.0",
+    "openai": "^4.77.0",
+    "zod": "^3.25.76"
+  }
+}

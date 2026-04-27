@@ -1,0 +1,30 @@
+import { z } from "zod";
+
+const ApiEnvSchema = z.object({
+  API_PORT: z.coerce.number().default(3001),
+  VI_OWNER_EXTERNAL_ID: z.string().default("owner:you"),
+  VI_CORS_ORIGINS: z.string().default(""),
+  VI_DEBUG_CONTEXT: z.enum(["true", "false"]).default("false"),
+  VI_USER_TIMEZONE: z.string().optional(),
+  VI_PASSIVE_DISCOVERY_GAP_MINUTES: z.coerce.number().default(30),
+  VI_TEMPORAL_MEANINGFUL_GAP_MS: z.string().optional(),
+  VI_DEBUG_DECISION_TRACE: z.enum(["true", "false"]).default("true"),
+  VI_IDLE_WORKER_ENABLED: z.enum(["true", "false"]).default("true"),
+  VI_IDLE_SCAN_INTERVAL_MS: z.coerce.number().default(300000),
+  VI_IDLE_ACTIVE_WINDOW_HOURS: z.coerce.number().default(24),
+  VI_OVERRIDE_STRING_NAME: z.string().default(""),
+  VI_AUTONOMY_PING_MIN_INTERVAL_MS: z.coerce.number().default(600000),
+  VI_AUTONOMY_MIN_RELEVANCE: z.enum(["low", "medium", "high"]).default("medium"),
+  VI_REQUIRE_API_KEY: z.enum(["true", "false"]).default("false"),
+  VI_PUBLIC_API_KEY: z.string().default(""),
+  VI_OWNER_API_KEY: z.string().default(""),
+  VI_AUTONOMY_ENABLED: z.enum(["true", "false"]).default("true"),
+  VI_AUTONOMY_ALLOW_LOCAL_READ: z.enum(["true", "false"]).default("true"),
+  VI_AUTONOMY_ALLOW_LOCAL_WRITE_SAFE: z.enum(["true", "false"]).default("true"),
+  VI_AUTONOMY_ALLOW_EXTERNAL_NOTIFY: z.enum(["true", "false"]).default("true"),
+  VI_AUTONOMY_ALLOW_EXTERNAL_ACT: z.enum(["true", "false"]).default("true"),
+  DATABASE_URL: z.string().min(1),
+});
+
+export type ApiEnv = z.infer<typeof ApiEnvSchema>;
+export const apiEnv = ApiEnvSchema.parse(process.env);

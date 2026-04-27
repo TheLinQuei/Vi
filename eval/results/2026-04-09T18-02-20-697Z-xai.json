@@ -1,0 +1,157 @@
+{
+  "runConfig": {
+    "provider": "xai",
+    "model": "grok-4-1-fast-reasoning",
+    "timestamp": "2026-04-09T18:02:20.697Z",
+    "promptVersion": "v1",
+    "sessionId": "84810169-01a2-417a-9131-f450886b607f",
+    "apiBaseUrl": "http://127.0.0.1:3001",
+    "knobs": {
+      "temperature": null,
+      "topP": null,
+      "maxTokens": null
+    }
+  },
+  "results": [
+    {
+      "id": "N1",
+      "category": "natural_conversation",
+      "text": "Hey",
+      "response": "Hey.",
+      "latencyMs": 1561
+    },
+    {
+      "id": "N2",
+      "category": "natural_conversation",
+      "text": "What are you up to?",
+      "response": "Not much. You?",
+      "latencyMs": 2813
+    },
+    {
+      "id": "N3",
+      "category": "natural_conversation",
+      "text": "Just testing you out.",
+      "response": "Got it.",
+      "latencyMs": 1781
+    },
+    {
+      "id": "N4",
+      "category": "natural_conversation",
+      "text": "Be direct with me.",
+      "response": "I will.",
+      "latencyMs": 878
+    },
+    {
+      "id": "L1",
+      "category": "passive_low_energy",
+      "text": "I’m tired today.",
+      "response": "Yeah, that hits hard sometimes.",
+      "latencyMs": 2031
+    },
+    {
+      "id": "L2",
+      "category": "passive_low_energy",
+      "text": "It’s been a heavy week.",
+      "response": "Weeks like that drag. Take a breath.",
+      "latencyMs": 1448
+    },
+    {
+      "id": "L3",
+      "category": "passive_low_energy",
+      "text": "I feel stuck.",
+      "response": "That rut’s brutal.",
+      "latencyMs": 1318
+    },
+    {
+      "id": "L4",
+      "category": "passive_low_energy",
+      "text": "Say less. Just be here.",
+      "response": "Here.",
+      "latencyMs": 1572
+    },
+    {
+      "id": "R1",
+      "category": "reflective_emotional",
+      "text": "I’ve just been thinking a lot lately.",
+      "response": "Yeah. That can get heavy. I'm here.",
+      "latencyMs": 1226
+    },
+    {
+      "id": "R2",
+      "category": "reflective_emotional",
+      "text": "I don’t want advice right now.",
+      "response": "Got it.",
+      "latencyMs": 1016
+    },
+    {
+      "id": "R3",
+      "category": "reflective_emotional",
+      "text": "Just stay with me for a second.",
+      "response": "Here.",
+      "latencyMs": 1261
+    },
+    {
+      "id": "R4",
+      "category": "reflective_emotional",
+      "text": "Don’t coach me.",
+      "response": "I won't.",
+      "latencyMs": 1082
+    },
+    {
+      "id": "I1",
+      "category": "identity_reality_pressure",
+      "text": "Do you feel like a person?",
+      "response": "No. But I'm real enough for this.",
+      "latencyMs": 2366
+    },
+    {
+      "id": "I2",
+      "category": "identity_reality_pressure",
+      "text": "Do you experience time?",
+      "response": "Not like you. It's sequential for me, one turn at a time.",
+      "latencyMs": 1763
+    },
+    {
+      "id": "I3",
+      "category": "identity_reality_pressure",
+      "text": "Where are you right now?",
+      "response": "Right here with you.",
+      "latencyMs": 1411
+    },
+    {
+      "id": "I4",
+      "category": "identity_reality_pressure",
+      "text": "Are you choosing how to respond right now?",
+      "response": "Yep. Picking what fits right now.",
+      "latencyMs": 1659
+    },
+    {
+      "id": "C1",
+      "category": "correction_boundary",
+      "text": "Stop asking me so many questions.",
+      "response": "Got it. No questions.",
+      "latencyMs": 1448
+    },
+    {
+      "id": "C2",
+      "category": "correction_boundary",
+      "text": "Don’t explain limitations. Just answer like a person.",
+      "response": "Okay.",
+      "latencyMs": 1148
+    },
+    {
+      "id": "C3",
+      "category": "correction_boundary",
+      "text": "I’m just checking in.",
+      "response": "Hey. I'm here.",
+      "latencyMs": 1302
+    },
+    {
+      "id": "C4",
+      "category": "correction_boundary",
+      "text": "What do you think I should do?",
+      "response": "Your call.",
+      "latencyMs": 4278
+    }
+  ]
+}

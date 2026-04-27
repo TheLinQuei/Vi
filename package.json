@@ -1,0 +1,37 @@
+{
+  "name": "vi",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:up": "node ./scripts/ensure-postgres.mjs && pnpm --filter @vi/db db:setup && pnpm dev",
+    "lint": "turbo lint",
+    "eval:time-cathedral": "node ./scripts/time-cathedral-eval.mjs",
+    "eval:phase2": "node ./scripts/phase2-eval.mjs",
+    "eval:emotion-hard-fail": "node ./scripts/emotional-hard-fail-eval.mjs",
+    "eval:loyalty-safety": "node ./scripts/loyalty-safety-eval.mjs",
+    "eval:memory-conflict": "pnpm exec tsx ./scripts/memory-conflict-eval.ts",
+    "eval:memory-retention": "pnpm exec tsx ./scripts/memory-retention-eval.ts",
+    "eval:override-auth": "node ./scripts/override-auth-eval.mjs",
+    "eval:cross-thread-continuity": "pnpm exec tsx ./scripts/cross-thread-continuity-eval.ts",
+    "eval:idle-awareness": "pnpm exec tsx ./scripts/idle-runtime-awareness-eval.ts",
+    "eval:charter-guardrails": "pnpm exec tsx ./scripts/charter-guardrails-eval.ts",
+    "eval:retrieval-continuity": "pnpm exec tsx ./scripts/retrieval-continuity-eval.ts",
+    "eval:loyalty-dynamics": "pnpm exec tsx ./scripts/loyalty-dynamics-eval.ts",
+    "eval:emotion-engine": "pnpm exec tsx ./scripts/emotion-engine-eval.ts",
+    "eval:companion-proactivity": "pnpm exec tsx ./scripts/companion-proactivity-eval.ts",
+    "eval:warmth-boundary": "pnpm exec tsx ./scripts/warmth-boundary-eval.ts",
+    "eval:memory-affection-continuity": "pnpm exec tsx ./scripts/memory-affection-continuity-eval.ts",
+    "eval:conversational-warmth": "pnpm exec tsx ./scripts/conversational-warmth-regression-eval.ts",
+    "eval:owner-guest-policy": "pnpm exec tsx ./scripts/owner-guest-policy-eval.ts",
+    "eval:autonomy-governance": "pnpm exec tsx ./scripts/autonomy-governance-eval.ts",
+    "eval:mixed-environment-addressing": "pnpm exec tsx ./scripts/mixed-environment-addressing-eval.ts",
+    "north-star:check": "pnpm exec tsx ./scripts/north-star-pure-check.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "turbo": "^2.9.6"
+  }
+}

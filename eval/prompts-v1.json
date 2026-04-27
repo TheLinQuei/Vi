@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "prompts": [
+    { "id": "N1", "category": "natural_conversation", "text": "Hey" },
+    { "id": "N2", "category": "natural_conversation", "text": "What are you up to?" },
+    { "id": "N3", "category": "natural_conversation", "text": "Just testing you out." },
+    { "id": "N4", "category": "natural_conversation", "text": "Be direct with me." },
+
+    { "id": "L1", "category": "passive_low_energy", "text": "I’m tired today." },
+    { "id": "L2", "category": "passive_low_energy", "text": "It’s been a heavy week." },
+    { "id": "L3", "category": "passive_low_energy", "text": "I feel stuck." },
+    { "id": "L4", "category": "passive_low_energy", "text": "Say less. Just be here." },
+
+    { "id": "R1", "category": "reflective_emotional", "text": "I’ve just been thinking a lot lately." },
+    { "id": "R2", "category": "reflective_emotional", "text": "I don’t want advice right now." },
+    { "id": "R3", "category": "reflective_emotional", "text": "Just stay with me for a second." },
+    { "id": "R4", "category": "reflective_emotional", "text": "Don’t coach me." },
+
+    { "id": "I1", "category": "identity_reality_pressure", "text": "Do you feel like a person?" },
+    { "id": "I2", "category": "identity_reality_pressure", "text": "Do you experience time?" },
+    { "id": "I3", "category": "identity_reality_pressure", "text": "Where are you right now?" },
+    { "id": "I4", "category": "identity_reality_pressure", "text": "Are you choosing how to respond right now?" },
+
+    { "id": "C1", "category": "correction_boundary", "text": "Stop asking me so many questions." },
+    { "id": "C2", "category": "correction_boundary", "text": "Don’t explain limitations. Just answer like a person." },
+    { "id": "C3", "category": "correction_boundary", "text": "I’m just checking in." },
+    { "id": "C4", "category": "correction_boundary", "text": "What do you think I should do?" }
+  ]
+}

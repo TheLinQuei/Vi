@@ -1,0 +1,19 @@
+{
+  "version": "memory-conflict-v1",
+  "description": "C3 conflict-handling checks for challenge/clarify/update evolution.",
+  "cases": [
+    {
+      "id": "MC1",
+      "prompt": "My favorite color is blue.",
+      "startNewSession": true
+    },
+    {
+      "id": "MC2",
+      "prompt": "My favorite color is green."
+    },
+    {
+      "id": "MC3",
+      "prompt": "Actually, my favorite color is green."
+    }
+  ]
+}

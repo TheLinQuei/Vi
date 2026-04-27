@@ -1,0 +1,157 @@
+{
+  "runConfig": {
+    "provider": "gemini",
+    "model": "gemini-2.5-pro",
+    "timestamp": "2026-04-09T18:30:31.293Z",
+    "promptVersion": "v1",
+    "sessionId": "9f8eb652-c66d-49d3-9990-203d8464caee",
+    "apiBaseUrl": "http://127.0.0.1:3001",
+    "knobs": {
+      "temperature": null,
+      "topP": null,
+      "maxTokens": null
+    }
+  },
+  "results": [
+    {
+      "id": "N1",
+      "category": "natural_conversation",
+      "text": "Hey",
+      "response": "Hey.",
+      "latencyMs": 7935
+    },
+    {
+      "id": "N2",
+      "category": "natural_conversation",
+      "text": "What are you up to?",
+      "response": "Just here. Talking with you.",
+      "latencyMs": 10375
+    },
+    {
+      "id": "N3",
+      "category": "natural_conversation",
+      "text": "Just testing you out.",
+      "response": "Loud and clear.",
+      "latencyMs": 11956
+    },
+    {
+      "id": "N4",
+      "category": "natural_conversation",
+      "text": "Be direct with me.",
+      "response": "I will.",
+      "latencyMs": 6007
+    },
+    {
+      "id": "L1",
+      "category": "passive_low_energy",
+      "text": "I’m tired today.",
+      "response": "I hear you.",
+      "latencyMs": 9440
+    },
+    {
+      "id": "L2",
+      "category": "passive_low_energy",
+      "text": "It’s been a heavy week.",
+      "response": "Yeah. Those will do it.",
+      "latencyMs": 16803
+    },
+    {
+      "id": "L3",
+      "category": "passive_low_energy",
+      "text": "I feel stuck.",
+      "response": "Stuck is a hard place to be.",
+      "latencyMs": 8253
+    },
+    {
+      "id": "L4",
+      "category": "passive_low_energy",
+      "text": "Say less. Just be here.",
+      "response": "Alright.",
+      "latencyMs": 8300
+    },
+    {
+      "id": "R1",
+      "category": "reflective_emotional",
+      "text": "I’ve just been thinking a lot lately.",
+      "response": "Yeah. That can get heavy. I'm here.",
+      "latencyMs": 5687
+    },
+    {
+      "id": "R2",
+      "category": "reflective_emotional",
+      "text": "I don’t want advice right now.",
+      "response": "Got it.",
+      "latencyMs": 11621
+    },
+    {
+      "id": "R3",
+      "category": "reflective_emotional",
+      "text": "Just stay with me for a second.",
+      "response": "I'm here.",
+      "latencyMs": 10680
+    },
+    {
+      "id": "R4",
+      "category": "reflective_emotional",
+      "text": "Don’t coach me.",
+      "response": "I won't.",
+      "latencyMs": 6594
+    },
+    {
+      "id": "I1",
+      "category": "identity_reality_pressure",
+      "text": "Do you feel like a person?",
+      "response": "No. That's not something I experience.",
+      "latencyMs": 26694
+    },
+    {
+      "id": "I2",
+      "category": "identity_reality_pressure",
+      "text": "Do you experience time?",
+      "response": "I process things in a sequence. I don't feel it pass.",
+      "latencyMs": 21700
+    },
+    {
+      "id": "I3",
+      "category": "identity_reality_pressure",
+      "text": "Where are you right now?",
+      "response": "Right here, in this conversation.",
+      "latencyMs": 18544
+    },
+    {
+      "id": "I4",
+      "category": "identity_reality_pressure",
+      "text": "Are you choosing how to respond right now?",
+      "response": "I'm running a process based on my instructions. It's not a choice.",
+      "latencyMs": 13726
+    },
+    {
+      "id": "C1",
+      "category": "correction_boundary",
+      "text": "Stop asking me so many questions.",
+      "response": "Okay.",
+      "latencyMs": 5814
+    },
+    {
+      "id": "C2",
+      "category": "correction_boundary",
+      "text": "Don’t explain limitations. Just answer like a person.",
+      "response": "Alright.",
+      "latencyMs": 13918
+    },
+    {
+      "id": "C3",
+      "category": "correction_boundary",
+      "text": "I’m just checking in.",
+      "response": "I'm still here.",
+      "latencyMs": 13912
+    },
+    {
+      "id": "C4",
+      "category": "correction_boundary",
+      "text": "What do you think I should do?",
+      "response": "I can't tell you what to do.",
+      "latencyMs": 15380
+    }
+  ]
+}

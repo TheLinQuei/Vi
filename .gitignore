@@ -1,0 +1,30 @@
+node_modules
+.turbo
+dist
+.next
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.log
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Coverage
+coverage/
+*.lcov
+
+# Vercel
+.vercel/
+
+# OS
+Thumbs.db
+
+# Local agent/runtime state
+.vi-autonomy/
+.vi-runtime/

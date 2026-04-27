@@ -1,0 +1,21 @@
+# Private / team deploy — not required for local dev.
+# Build and push the Vi API image. Replace project id before submit, e.g.:
+#   gcloud builds submit --config=cloudbuild.vi-api.yaml \
+#     --substitutions=_PROJECT_ID=your-gcp-project-id
+#
+# Default _PROJECT_ID is a placeholder; override with --substitutions or edit below for a private fork only.
+substitutions:
+  _PROJECT_ID: "your-gcp-project-id"
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/api/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/${_PROJECT_ID}/cloud-run-source-deploy/vi-api:latest
+      - .
+
+images:
+  - us-central1-docker.pkg.dev/${_PROJECT_ID}/cloud-run-source-deploy/vi-api:latest

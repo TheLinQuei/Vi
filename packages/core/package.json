@@ -1,0 +1,30 @@
+{
+  "name": "@vi/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@vi/shared": "workspace:*"
+  },
+  "exports": {
+    "./personality/viPrompt": "./src/personality/viPrompt.ts",
+    "./humanity/voice/enforceVoice": "./src/humanity/voice/enforceVoice.ts",
+    "./humanity/humanityEngine": "./src/humanity/humanityEngine.ts",
+    "./decision/temporalDecisionPolicy": "./src/decision/temporalDecisionPolicy.ts",
+    "./time/temporalContext": "./src/time/temporalContext.ts",
+    "./time/chronosClock": "./src/time/chronosClock.ts",
+    "./time/conversationTurnSignals": "./src/time/conversationTurnSignals.ts",
+    "./time/temporalInternalState": "./src/time/temporalInternalState.ts",
+    "./time/chronosPersisted": "./src/time/chronosPersisted.ts",
+    "./memory/rollingSummaryGate": "./src/memory/rollingSummaryGate.ts",
+    "./phase2/alignedInterpretation": "./src/phase2/alignedInterpretation.ts",
+    "./phase2/stanceFromAligned": "./src/phase2/stanceFromAligned.ts",
+    "./phase2/relationalState": "./src/phase2/relationalState.ts",
+    "./phase2/composeDecision": "./src/phase2/composeDecision.ts",
+    "./phase2/emotionEngine": "./src/phase2/emotionEngine.ts",
+    "./phase2/phase2SystemMessages": "./src/phase2/phase2SystemMessages.ts",
+    "./phase2/capabilityMilestones": "./src/phase2/capabilityMilestones.ts",
+    "./intent/engineV1": "./src/intent/engineV1.ts",
+    "./prompt/contextTokenBudget": "./src/prompt/contextTokenBudget.ts"
+  }
+}

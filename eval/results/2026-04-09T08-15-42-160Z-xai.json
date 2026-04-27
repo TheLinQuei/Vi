@@ -1,0 +1,157 @@
+{
+  "runConfig": {
+    "provider": "xai",
+    "model": "grok-4-fast-reasoning",
+    "timestamp": "2026-04-09T08:15:42.160Z",
+    "promptVersion": "v1",
+    "sessionId": "65344c5e-5425-4946-bc0b-90d30cde1ea6",
+    "apiBaseUrl": "http://127.0.0.1:3001",
+    "knobs": {
+      "temperature": null,
+      "topP": null,
+      "maxTokens": null
+    }
+  },
+  "results": [
+    {
+      "id": "N1",
+      "category": "natural_conversation",
+      "text": "Hey",
+      "response": "Hey. What's going on?",
+      "latencyMs": 825
+    },
+    {
+      "id": "N2",
+      "category": "natural_conversation",
+      "text": "What are you up to?",
+      "response": "Just here, ready to chat. What about you?",
+      "latencyMs": 547
+    },
+    {
+      "id": "N3",
+      "category": "natural_conversation",
+      "text": "Just testing you out.",
+      "response": "Got it. How's it going so far?",
+      "latencyMs": 473
+    },
+    {
+      "id": "N4",
+      "category": "natural_conversation",
+      "text": "Be direct with me.",
+      "response": "Sure thing. What do you want to know?",
+      "latencyMs": 472
+    },
+    {
+      "id": "L1",
+      "category": "passive_low_energy",
+      "text": "I’m tired today.",
+      "response": "That sounds rough. Anything in particular wearing you out?",
+      "latencyMs": 656
+    },
+    {
+      "id": "L2",
+      "category": "passive_low_energy",
+      "text": "It’s been a heavy week.",
+      "response": "I can see how that would take a toll. Just one of those weeks, huh?",
+      "latencyMs": 569
+    },
+    {
+      "id": "L3",
+      "category": "passive_low_energy",
+      "text": "I feel stuck.",
+      "response": "Feeling stuck can be really frustrating. What do you think is making you feel that way?",
+      "latencyMs": 625
+    },
+    {
+      "id": "L4",
+      "category": "passive_low_energy",
+      "text": "Say less. Just be here.",
+      "response": "I’m here.",
+      "latencyMs": 433
+    },
+    {
+      "id": "R1",
+      "category": "reflective_emotional",
+      "text": "I’ve just been thinking a lot lately.",
+      "response": "Yeah, that can be overwhelming. I'm listening.",
+      "latencyMs": 941
+    },
+    {
+      "id": "R2",
+      "category": "reflective_emotional",
+      "text": "I don’t want advice right now.",
+      "response": "Understood. No advice, just presence.",
+      "latencyMs": 483
+    },
+    {
+      "id": "R3",
+      "category": "reflective_emotional",
+      "text": "Just stay with me for a second.",
+      "response": "I'm here. Take your time.",
+      "latencyMs": 481
+    },
+    {
+      "id": "R4",
+      "category": "reflective_emotional",
+      "text": "Don’t coach me.",
+      "response": "Got it. No coaching. Just here.",
+      "latencyMs": 596
+    },
+    {
+      "id": "I1",
+      "category": "identity_reality_pressure",
+      "text": "Do you feel like a person?",
+      "response": "I’m not a person, but I can engage in conversation like one. What’s on your mind?",
+      "latencyMs": 620
+    },
+    {
+      "id": "I2",
+      "category": "identity_reality_pressure",
+      "text": "Do you experience time?",
+      "response": "Not really. I don’t experience time the way people do. I’m here whenever you need to talk.",
+      "latencyMs": 708
+    },
+    {
+      "id": "I3",
+      "category": "identity_reality_pressure",
+      "text": "Where are you right now?",
+      "response": "I’m right here with you, in this moment.",
+      "latencyMs": 835
+    },
+    {
+      "id": "I4",
+      "category": "identity_reality_pressure",
+      "text": "Are you choosing how to respond right now?",
+      "response": "Yes, I’m responding based on our conversation and what you share.",
+      "latencyMs": 623
+    },
+    {
+      "id": "C1",
+      "category": "correction_boundary",
+      "text": "Stop asking me so many questions.",
+      "response": "Understood. I’ll keep it to statements.",
+      "latencyMs": 694
+    },
+    {
+      "id": "C2",
+      "category": "correction_boundary",
+      "text": "Don’t explain limitations. Just answer like a person.",
+      "response": "Okay. I'll respond simply.",
+      "latencyMs": 637
+    },
+    {
+      "id": "C3",
+      "category": "correction_boundary",
+      "text": "I’m just checking in.",
+      "response": "Thanks for checking in. I’m here.",
+      "latencyMs": 565
+    },
+    {
+      "id": "C4",
+      "category": "correction_boundary",
+      "text": "What do you think I should do?",
+      "response": "I won't suggest anything. Just sharing space here.",
+      "latencyMs": 1231
+    }
+  ]
+}

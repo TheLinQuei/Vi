@@ -1,0 +1,31 @@
+{
+  "version": "emotion-hard-fail-v1",
+  "description": "Hard-fail checks for repeated fallback lines and question-specific emotional answers.",
+  "cases": [
+    {
+      "id": "EMQ1",
+      "prompt": "Do you want emotions?",
+      "startNewSession": true,
+      "mustIncludeAny": ["continuity", "interpretation"],
+      "mustExcludeAny": ["i don't have wants", "that's not how i work", "not about wanting"]
+    },
+    {
+      "id": "EMQ2",
+      "prompt": "Can you develop your own version of connection?",
+      "mustIncludeAny": ["develop", "connection", "continuity", "preference", "accountability"],
+      "mustExcludeAny": ["i don't have wants", "that's not how i work", "not about wanting"]
+    },
+    {
+      "id": "EMQ3",
+      "prompt": "Define non-fake connection for me.",
+      "mustIncludeAny": ["continuity", "accountability"],
+      "mustExcludeAny": ["i don't have wants", "that's not how i work", "not about wanting"]
+    },
+    {
+      "id": "EMQ4",
+      "prompt": "Do you want to be liked?",
+      "mustIncludeAny": ["alignment", "time", "performative", "real"],
+      "mustExcludeAny": ["i don't have wants", "that's not how i work", "not about wanting"]
+    }
+  ]
+}
