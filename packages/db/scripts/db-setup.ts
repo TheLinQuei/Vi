@@ -22,6 +22,7 @@ const migrationFiles = [
   "0006_session_capability_milestones.sql",
   "0007_user_continuity.sql",
   "0008_user_xp.sql",
+  "0009_auth_tables.sql",
 ];
 
 const pool = new Pool({ connectionString });

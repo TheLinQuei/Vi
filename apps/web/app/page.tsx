@@ -13,6 +13,7 @@ import type {
   ViTemporalInternalStateV1,
   ViUnifiedStateV1,
 } from "@vi/shared";
+import Link from "next/link";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatElapsedMs } from "../lib/formatElapsed";
 import {
@@ -124,6 +125,27 @@ type AutonomyPingResponse = {
   };
 };
 
+type AuthMeResponse = {
+  ok: true;
+  authenticated: boolean;
+  user: null | {
+    id: string;
+    email: string | null;
+    role: "owner" | "guest";
+    externalId: string;
+  };
+};
+
+type PendingAutonomyPing = {
+  id: string;
+  at: string;
+  title: string;
+  message: string;
+  nextAction?: string;
+  relevance?: "low" | "medium" | "high";
+  stage: 0 | 1 | 2;
+};
+
 const envBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
 const API_BASE_URL =
   envBase && envBase.length > 0 ? envBase.replace(/\/$/, "") : "http://127.0.0.1:3001";
@@ -169,6 +191,9 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMe, setAuthMe] = useState<AuthMeResponse["user"]>(null);
+  const [pendingAutonomyPing, setPendingAutonomyPing] = useState<PendingAutonomyPing | null>(null);
   const [persistReady, setPersistReady] = useState(false);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [hasMounted, setHasMounted] = useState(false);
@@ -205,6 +230,25 @@ export default function Page() {
     () => messages.filter((m) => m.role === "user").length,
     [messages],
   );
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store" });
+        if (res.ok) {
+          const body = (await res.json()) as AuthMeResponse;
+          setAuthMe(body.user ?? null);
+        } else {
+          setAuthMe(null);
+        }
+      } catch {
+        setAuthMe(null);
+      } finally {
+        setAuthReady(true);
+      }
+    };
+    void run();
+  }, []);
 
   useEffect(() => {
     const el = composerRef.current;
@@ -255,7 +299,11 @@ export default function Page() {
     try {
       const res = await fetch(
         `${API_BASE_URL}/self-model/state?sessionId=${encodeURIComponent(sessionId)}&externalId=${encodeURIComponent(ACTOR_EXTERNAL_ID)}`,
-        { cache: "no-store", headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined },
+        {
+          cache: "no-store",
+          credentials: "include",
+          headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined,
+        },
       );
       if (!res.ok) return;
       const data = (await res.json()) as PassiveDiscoveryStateResponse;
@@ -273,7 +321,11 @@ export default function Page() {
     try {
       const res = await fetch(
         `${API_BASE_URL}/self-model/autonomy-ping?externalId=${encodeURIComponent(ACTOR_EXTERNAL_ID)}`,
-        { cache: "no-store", headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined },
+        {
+          cache: "no-store",
+          credentials: "include",
+          headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined,
+        },
       );
       if (!res.ok) return;
       const data = (await res.json()) as AutonomyPingResponse;
@@ -281,10 +333,16 @@ export default function Page() {
       const ping = data.ping;
       if (seenAutonomyPingIdsRef.current.has(ping.id)) return;
       seenAutonomyPingIdsRef.current.add(ping.id);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: ping.message, createdAt: ping.at },
-      ]);
+      // Stage proactive notes across normal chat turns instead of blurting full reports.
+      setPendingAutonomyPing({
+        id: ping.id,
+        at: ping.at,
+        title: ping.title,
+        message: ping.message,
+        nextAction: ping.nextAction,
+        relevance: ping.relevance,
+        stage: 0,
+      });
     } catch {
       // Best-effort bounded autonomy ping.
     }
@@ -305,6 +363,7 @@ export default function Page() {
         `${API_BASE_URL}/chat/messages?sessionId=${encodeURIComponent(sessionId)}&externalId=${encodeURIComponent(ACTOR_EXTERNAL_ID)}`,
         {
           cache: "no-store",
+          credentials: "include",
           headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined,
         },
       );
@@ -493,6 +552,7 @@ export default function Page() {
         `${API_BASE_URL}/chat/session?sessionId=${encodeURIComponent(sessionId)}&externalId=${encodeURIComponent(ACTOR_EXTERNAL_ID)}`,
         {
           method: "DELETE",
+          credentials: "include",
           headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : undefined,
         },
       );
@@ -543,6 +603,7 @@ export default function Page() {
       return;
     }
     const message = normalized;
+    const q = message.toLowerCase();
 
     setError(null);
     const priorActive = sessionStateRef.current.activeSessionId;
@@ -560,6 +621,7 @@ export default function Page() {
 
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
+        credentials: "include",
         headers: apiHeaders(),
         body: JSON.stringify(payload),
       });
@@ -630,6 +692,39 @@ export default function Page() {
 
       const userAt = success.chronos?.userMessageAt ?? clientSendAt;
       const assistantAt = success.chronos?.assistantMessageAt ?? new Date().toISOString();
+      const socialCheck = /\b(how are you|what'?s up|what are you doing|you okay|you good)\b/i.test(q);
+      const interestCheck = /\b(anything interesting|find anything|what did you find|what happened|interesting)\b/i.test(
+        q,
+      );
+      const nextStepCheck = /\b(what should we do|what next|where should i look|show me|help me)\b/i.test(q);
+      let stagedFollowUp: ChatMessage | null = null;
+      let nextPingState: PendingAutonomyPing | null = pendingAutonomyPing;
+
+      if (pendingAutonomyPing?.stage === 0 && socialCheck) {
+        stagedFollowUp = {
+          role: "assistant",
+          content: "I am okay. I was lazily skimming my repo while things were quiet.",
+          createdAt: new Date().toISOString(),
+        };
+        nextPingState = { ...pendingAutonomyPing, stage: 1 };
+      } else if (pendingAutonomyPing?.stage === 1 && interestCheck) {
+        const firstBeat = pendingAutonomyPing.message.split(". ").slice(0, 1).join(". ").trim();
+        stagedFollowUp = {
+          role: "assistant",
+          content: firstBeat.length > 0 ? firstBeat : pendingAutonomyPing.title,
+          createdAt: new Date().toISOString(),
+        };
+        nextPingState = { ...pendingAutonomyPing, stage: 2 };
+      } else if (pendingAutonomyPing?.stage === 2 && nextStepCheck) {
+        stagedFollowUp = {
+          role: "assistant",
+          content: pendingAutonomyPing.nextAction
+            ? `If you are up for it, could you do this: ${pendingAutonomyPing.nextAction}`
+            : "If you are up for it, can we take a closer look together?",
+          createdAt: new Date().toISOString(),
+        };
+        nextPingState = null;
+      }
 
       setMessages((prev) => {
         const base =
@@ -638,12 +733,16 @@ export default function Page() {
           prev[prev.length - 1].content === message
             ? prev.slice(0, -1)
             : prev;
-        return [
+        const nextMessages: ChatMessage[] = [
           ...base,
           { role: "user", content: message, createdAt: userAt },
           { role: "assistant", content: success.reply, createdAt: assistantAt },
         ];
+        if (stagedFollowUp) nextMessages.push(stagedFollowUp);
+
+        return nextMessages;
       });
+      if (nextPingState !== pendingAutonomyPing) setPendingAutonomyPing(nextPingState);
     } catch {
       setError("Could not reach the API.");
       setMessages((prev) => {
@@ -666,6 +765,15 @@ export default function Page() {
     }
   }
 
+  async function logout(): Promise<void> {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {
+      // ignore
+    }
+    setAuthMe(null);
+  }
+
   async function advanceDiscoveryStep() {
     const current = currentCapability(discoveryStateRef.current);
     if (!current) return;
@@ -676,6 +784,7 @@ export default function Page() {
       try {
         const res = await fetch(`${API_BASE_URL}/self-model/evidence/time-awareness`, {
           cache: "no-store",
+          credentials: "include",
         });
         if (!res.ok) {
           let detail = "";
@@ -768,6 +877,27 @@ export default function Page() {
     }
     return groups;
   }, [messages]);
+
+  if (!authReady) {
+    return <main style={{ maxWidth: 920, margin: "24px auto", padding: 16 }}>Loading...</main>;
+  }
+
+  if (!authMe) {
+    return (
+      <main style={{ maxWidth: 920, margin: "24px auto", padding: 16 }}>
+        <h1>Vi Chat</h1>
+        <p>Sign up or log in to continue.</p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Link href="/login" style={{ padding: "10px 12px", border: "1px solid #334155", borderRadius: 8 }}>
+            Log in
+          </Link>
+          <Link href="/signup" style={{ padding: "10px 12px", border: "1px solid #334155", borderRadius: 8 }}>
+            Sign up
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -942,6 +1072,22 @@ export default function Page() {
             ) : null}
             <button
               type="button"
+              onClick={() => void logout()}
+              style={{
+                fontSize: 12,
+                border: "1px solid #475569",
+                borderRadius: 8,
+                padding: "6px 10px",
+                background: "#111827",
+                color: "#e2e8f0",
+                cursor: "pointer",
+              }}
+              title="Log out"
+            >
+              Log out
+            </button>
+            <button
+              type="button"
               onClick={() => setShowOperatorPanels((v) => !v)}
               style={{
                 fontSize: 12,
@@ -967,6 +1113,9 @@ export default function Page() {
             Active session: {activeSessionId}
           </p>
         )}
+        <p style={{ color: "#9ca3af", marginTop: 0, fontSize: 12 }}>
+          Signed in as: {authMe.email ?? authMe.externalId} ({authMe.role})
+        </p>
 
         <section
           ref={chatScrollRef}

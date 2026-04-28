@@ -322,7 +322,7 @@ export type ChatResponse = {
 export type ChatErrorResponse = {
   error: {
     message: string;
-    code?: "UPSTREAM_QUOTA_LIMIT" | "UPSTREAM_RATE_LIMIT" | "INTERNAL_ERROR";
+    code?: "UPSTREAM_QUOTA_LIMIT" | "UPSTREAM_RATE_LIMIT" | "INTERNAL_ERROR" | "SIGNUP_REQUIRED";
   };
 };
 

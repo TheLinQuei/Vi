@@ -387,6 +387,10 @@ function enforceStrictSourceOrIdk(text: string, userMessage?: string): string {
   if (!["1", "true", "yes", "on"].includes(strict)) return text;
   const q = (userMessage ?? "").toLowerCase().trim();
   if (!q) return text;
+  const personalProgressUpdate =
+    /^(i['’]m|im|i am|i['’]ve|i have|we['’]re|we are)\b/.test(q) &&
+    /\b(working on|trying to|getting|building|setting up|deploying|upgrading|testing)\b/.test(q);
+  if (personalProgressUpdate) return text;
   if (RE_IDENTITY_OR_PERSONAL.test(q)) return text;
   if (!RE_FACTUAL_QUERY.test(q)) return text;
   if (RE_HAS_SOURCE_LINK.test(text)) return text;

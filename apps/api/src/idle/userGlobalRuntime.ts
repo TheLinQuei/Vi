@@ -425,17 +425,17 @@ function buildNaturalProposal(nowIso: string, top: UserRepoDigestV1): UserPropos
   if (isSenses) {
     return {
       at: nowIso,
-      title: `I found a senses-related gap in ${top.filePath}`,
-      why: "If one of my sensing pathways is thin or missing, my behavior can feel flat or disconnected in chat.",
-      nextAction: `Open ${top.filePath} and map what is wired vs missing for seeing/hearing/speaking style signals.`,
+      title: `I found a senses gap in ${top.filePath}`,
+      why: "If one sensing pathway is thin or missing, I can come off flat in chat.",
+      nextAction: `Open ${top.filePath} and map what is wired vs missing for seeing/hearing/speaking cues.`,
       relevance: "high",
     };
   }
   return {
     at: nowIso,
     title: `I noticed a meaningful change in ${top.filePath}`,
-    why: "This file is likely to influence how I reason or respond.",
-    nextAction: `Open ${top.filePath} and note 2-3 user-visible behavior changes we should watch.`,
+    why: "This could shift how I reason or respond.",
+    nextAction: `Open ${top.filePath} and note 2-3 chat-level changes users might feel.`,
     relevance: top.retentionTier === "active" ? "high" : "medium",
   };
 }

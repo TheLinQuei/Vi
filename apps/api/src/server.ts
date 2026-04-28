@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import { timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import {
   looksLikeRepoCodeQuestion,
   retrieveRepoEvidence,
@@ -46,6 +49,8 @@ import {
 } from "./chat/passiveState.js";
 import {
   createAssistantMessageAndMarkTurn,
+  createAuthIdentity,
+  createWebSession,
   createSession,
   createTurnJournal,
   createUserMessageAndMarkTurn,
@@ -58,12 +63,18 @@ import {
   getSessionNorthStarRow,
   getSessionRollingSummaryFields,
   getUserContinuityRow,
+  findAuthIdentityByProviderEmail,
+  findAuthEmailByUserId,
+  findAuthIdentityByProviderUserId,
+  findUserById,
+  findWebSessionByTokenHash,
   listCandidateSessionsForIdleScan,
   listCandidateUsersForIdleScan,
   listRecentMessages,
   listRecentTurnJournalForSession,
   listSessionsForUser,
   listSessionMessagesChronological,
+  revokeWebSessionByTokenHash,
   updateSessionNorthStarPersistence,
   upsertUserContinuityRow,
   updateTurnJournal,
@@ -126,7 +137,9 @@ await app.register(cors, {
     return cb(new Error("Origin not allowed"), false);
   },
   allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+  credentials: true,
 });
+await app.register(cookie);
 
 const VI_OWNER_EXTERNAL_ID = apiEnv.VI_OWNER_EXTERNAL_ID.trim().toLowerCase();
 const HISTORY_LIMIT = 20;
@@ -149,10 +162,96 @@ const VI_AUTONOMY_MIN_RELEVANCE = apiEnv.VI_AUTONOMY_MIN_RELEVANCE;
 const VI_REQUIRE_API_KEY = apiEnv.VI_REQUIRE_API_KEY === "true";
 const VI_PUBLIC_API_KEY = apiEnv.VI_PUBLIC_API_KEY.trim();
 const VI_OWNER_API_KEY = apiEnv.VI_OWNER_API_KEY.trim();
+const VI_OWNER_EMAIL = apiEnv.VI_OWNER_EMAIL.trim().toLowerCase();
+const VI_SESSION_COOKIE_NAME = apiEnv.VI_SESSION_COOKIE_NAME.trim() || "vi_session";
+const VI_SESSION_TTL_HOURS = apiEnv.VI_SESSION_TTL_HOURS;
+const VI_SESSION_SECURE = apiEnv.VI_SESSION_SECURE !== "false";
+const VI_GOOGLE_CLIENT_ID = apiEnv.VI_GOOGLE_CLIENT_ID.trim();
+const VI_GOOGLE_CLIENT_SECRET = apiEnv.VI_GOOGLE_CLIENT_SECRET.trim();
+const VI_GOOGLE_REDIRECT_URI = apiEnv.VI_GOOGLE_REDIRECT_URI.trim();
 const VI_GUEST_MESSAGE_LIMIT = apiEnv.VI_GUEST_MESSAGE_LIMIT;
 
+type SessionActor = {
+  userId: string;
+  email: string | null;
+  role: "owner" | "guest";
+  externalId: string;
+};
+
+function hashSessionToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function newSessionToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function isOwnerEmail(email: string | null | undefined): boolean {
+  if (!VI_OWNER_EMAIL) return false;
+  return (email ?? "").trim().toLowerCase() === VI_OWNER_EMAIL;
+}
+
+async function getSessionActorFromRequest(
+  request: { cookies: Record<string, string | undefined> },
+): Promise<SessionActor | null> {
+  const token = request.cookies?.[VI_SESSION_COOKIE_NAME];
+  if (!token) return null;
+  const session = await findWebSessionByTokenHash(hashSessionToken(token));
+  if (!session) return null;
+  const user = await findUserById(session.userId);
+  if (!user) return null;
+  const email = await findAuthEmailByUserId(user.id);
+  const role: "owner" | "guest" = isOwnerEmail(email) ? "owner" : "guest";
+  return {
+    userId: user.id,
+    email,
+    role,
+    externalId: role === "owner" ? VI_OWNER_EXTERNAL_ID : `user:${user.id}`,
+  };
+}
+
+function setSessionCookie(reply: {
+  setCookie: (
+    name: string,
+    value: string,
+    options: { path: string; httpOnly: boolean; sameSite: "none" | "lax"; secure: boolean; maxAge: number },
+  ) => void;
+}, token: string): void {
+  reply.setCookie(VI_SESSION_COOKIE_NAME, token, {
+    path: "/",
+    httpOnly: true,
+    sameSite: VI_SESSION_SECURE ? "none" : "lax",
+    secure: VI_SESSION_SECURE,
+    maxAge: VI_SESSION_TTL_HOURS * 60 * 60,
+  });
+}
+
+function clearSessionCookie(reply: {
+  clearCookie: (name: string, options: { path: string; sameSite: "none" | "lax"; secure: boolean }) => void;
+}): void {
+  reply.clearCookie(VI_SESSION_COOKIE_NAME, {
+    path: "/",
+    sameSite: VI_SESSION_SECURE ? "none" : "lax",
+    secure: VI_SESSION_SECURE,
+  });
+}
+
+async function establishSessionForUser(reply: { setCookie: Function }, userId: string): Promise<void> {
+  const token = newSessionToken();
+  const tokenHash = hashSessionToken(token);
+  const expiresAt = new Date(Date.now() + VI_SESSION_TTL_HOURS * 60 * 60 * 1000);
+  await createWebSession({ userId, sessionTokenHash: tokenHash, expiresAt });
+  setSessionCookie(reply as { setCookie: any }, token);
+}
+
 app.addHook("onRequest", async (request, reply) => {
+  const sessionActor = await getSessionActorFromRequest(request);
+  (request as { sessionActor?: SessionActor | null }).sessionActor = sessionActor;
+  if (request.url.startsWith("/auth/")) {
+    return;
+  }
   if (!VI_REQUIRE_API_KEY) return;
+  if (sessionActor) return;
   const tier = getRequestAuthTier(request.headers);
   if (tier === "none") {
     reply.code(401);
@@ -176,6 +275,11 @@ function getRequestAuthTier(headers: Record<string, unknown>): "owner" | "public
   if (VI_OWNER_API_KEY && safeEq(key, VI_OWNER_API_KEY)) return "owner";
   if (VI_PUBLIC_API_KEY && safeEq(key, VI_PUBLIC_API_KEY)) return "public";
   return "none";
+}
+
+function isOwnerRequest(request: { headers: Record<string, unknown>; sessionActor?: SessionActor | null }): boolean {
+  const sessionOwner = request.sessionActor?.role === "owner";
+  return sessionOwner || getRequestAuthTier(request.headers) === "owner";
 }
 
 function logApiError(scope: string, error: unknown, extra?: Record<string, unknown>): void {
@@ -552,6 +656,19 @@ type IdentityResolveRequest = {
   providerUserId?: string;
 };
 
+type SignupRequest = { email?: string; password?: string };
+type LoginRequest = { email?: string; password?: string };
+type AuthMeResponse = {
+  ok: true;
+  authenticated: boolean;
+  user: null | {
+    id: string;
+    email: string | null;
+    role: "owner" | "guest";
+    externalId: string;
+  };
+};
+
 function normalizeExternalId(raw: string | undefined | null): string | null {
   const v = String(raw ?? "").trim().toLowerCase();
   return v.length > 0 ? v : null;
@@ -566,6 +683,11 @@ function parseActorExternalIdFromContext(context: unknown): string | null {
   const v = (context as Record<string, unknown>).actorExternalId;
   if (typeof v !== "string") return null;
   return normalizeExternalId(v);
+}
+
+function requestSessionActor(request: unknown): SessionActor | null {
+  const actor = (request as { sessionActor?: SessionActor | null })?.sessionActor;
+  return actor ?? null;
 }
 
 type IdentityResolveResponse = {
@@ -816,7 +938,7 @@ app.get<{ Querystring: { sessionId?: string; externalId?: string }; Reply: Passi
 app.post<{ Body: ImportMemoryRequest; Reply: ImportMemoryResponse | ChatErrorResponse }>(
   "/self-model/memory/import",
   async (request, reply): Promise<ImportMemoryResponse | ChatErrorResponse> => {
-    if (VI_REQUIRE_API_KEY && getRequestAuthTier(request.headers as Record<string, unknown>) !== "owner") {
+    if (VI_REQUIRE_API_KEY && !isOwnerRequest(request as { headers: Record<string, unknown>; sessionActor?: SessionActor | null })) {
       reply.code(403);
       return { error: { message: "owner API key required" } };
     }
@@ -906,7 +1028,7 @@ app.post<{ Body: ImportMemoryRequest; Reply: ImportMemoryResponse | ChatErrorRes
 app.post<{ Body: ImportPinsRequest; Reply: ImportPinsResponse | ChatErrorResponse }>(
   "/self-model/memory/import-pins",
   async (request, reply): Promise<ImportPinsResponse | ChatErrorResponse> => {
-    if (VI_REQUIRE_API_KEY && getRequestAuthTier(request.headers as Record<string, unknown>) !== "owner") {
+    if (VI_REQUIRE_API_KEY && !isOwnerRequest(request as { headers: Record<string, unknown>; sessionActor?: SessionActor | null })) {
       reply.code(403);
       return { error: { message: "owner API key required" } };
     }
@@ -987,6 +1109,202 @@ app.get<{ Reply: AdapterContractResponse }>("/self-model/adapter-contract", asyn
   };
 });
 
+app.post<{ Body: SignupRequest; Reply: { ok: true } | ChatErrorResponse }>(
+  "/auth/signup",
+  async (request, reply): Promise<{ ok: true } | ChatErrorResponse> => {
+    const email = String(request.body?.email ?? "").trim().toLowerCase();
+    const password = String(request.body?.password ?? "");
+    if (!email || !password || password.length < 8) {
+      reply.code(400);
+      return { error: { message: "Valid email and password (min 8 chars) are required." } };
+    }
+    const existing = await findAuthIdentityByProviderEmail({ provider: "email", email });
+    if (existing) {
+      reply.code(409);
+      return { error: { message: "Account already exists for this email." } };
+    }
+    const user = await getOrCreateUserByExternalId(`email:${email}`);
+    const passwordHash = await bcrypt.hash(password, 12);
+    await createAuthIdentity({
+      userId: user.id,
+      provider: "email",
+      providerUserId: email,
+      email,
+      passwordHash,
+    });
+    await establishSessionForUser(reply as { setCookie: Function }, user.id);
+    return { ok: true };
+  },
+);
+
+app.post<{ Body: LoginRequest; Reply: { ok: true } | ChatErrorResponse }>(
+  "/auth/login",
+  async (request, reply): Promise<{ ok: true } | ChatErrorResponse> => {
+    const email = String(request.body?.email ?? "").trim().toLowerCase();
+    const password = String(request.body?.password ?? "");
+    if (!email || !password) {
+      reply.code(400);
+      return { error: { message: "Email and password are required." } };
+    }
+    const identity = await findAuthIdentityByProviderEmail({ provider: "email", email });
+    if (!identity?.passwordHash) {
+      reply.code(401);
+      return { error: { message: "Invalid email or password." } };
+    }
+    const ok = await bcrypt.compare(password, identity.passwordHash);
+    if (!ok) {
+      reply.code(401);
+      return { error: { message: "Invalid email or password." } };
+    }
+    await establishSessionForUser(reply as { setCookie: Function }, identity.userId);
+    return { ok: true };
+  },
+);
+
+app.get<{ Reply: AuthMeResponse }>("/auth/me", async (request): Promise<AuthMeResponse> => {
+  const actor = requestSessionActor(request);
+  if (!actor) return { ok: true, authenticated: false, user: null };
+  return {
+    ok: true,
+    authenticated: true,
+    user: {
+      id: actor.userId,
+      email: actor.email,
+      role: actor.role,
+      externalId: actor.externalId,
+    },
+  };
+});
+
+app.post<{ Reply: { ok: true } }>("/auth/logout", async (request, reply): Promise<{ ok: true }> => {
+  const token = request.cookies?.[VI_SESSION_COOKIE_NAME];
+  if (token) await revokeWebSessionByTokenHash(hashSessionToken(token));
+  clearSessionCookie(reply as { clearCookie: any });
+  return { ok: true };
+});
+
+app.get<{
+  Querystring: { returnTo?: string };
+  Reply: { url: string } | ChatErrorResponse;
+}>("/auth/google/start", async (request, reply) => {
+  if (!VI_GOOGLE_CLIENT_ID || !VI_GOOGLE_REDIRECT_URI) {
+    reply.code(400);
+    return { error: { message: "Google OAuth is not configured." } };
+  }
+  const state = randomBytes(16).toString("hex");
+  reply.setCookie("vi_oauth_state", state, {
+    path: "/",
+    httpOnly: true,
+    sameSite: VI_SESSION_SECURE ? "none" : "lax",
+    secure: VI_SESSION_SECURE,
+    maxAge: 10 * 60,
+  });
+  const returnTo = String(request.query.returnTo ?? "").trim();
+  if (returnTo.startsWith("http://") || returnTo.startsWith("https://") || returnTo.startsWith("/")) {
+    reply.setCookie("vi_oauth_return_to", returnTo, {
+      path: "/",
+      httpOnly: true,
+      sameSite: VI_SESSION_SECURE ? "none" : "lax",
+      secure: VI_SESSION_SECURE,
+      maxAge: 10 * 60,
+    });
+  }
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", VI_GOOGLE_CLIENT_ID);
+  url.searchParams.set("redirect_uri", VI_GOOGLE_REDIRECT_URI);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("state", state);
+  return { url: url.toString() };
+});
+
+app.get<{
+  Querystring: { code?: string; state?: string };
+  Reply: { ok: true } | ChatErrorResponse;
+}>("/auth/google/callback", async (request, reply) => {
+  if (!VI_GOOGLE_CLIENT_ID || !VI_GOOGLE_CLIENT_SECRET || !VI_GOOGLE_REDIRECT_URI) {
+    reply.code(400);
+    return { error: { message: "Google OAuth is not configured." } };
+  }
+  const code = String(request.query.code ?? "").trim();
+  const state = String(request.query.state ?? "").trim();
+  const cookieState = request.cookies?.vi_oauth_state ?? "";
+  if (!code || !state || !cookieState || state !== cookieState) {
+    reply.code(400);
+    return { error: { message: "Invalid OAuth callback state." } };
+  }
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: VI_GOOGLE_CLIENT_ID,
+      client_secret: VI_GOOGLE_CLIENT_SECRET,
+      redirect_uri: VI_GOOGLE_REDIRECT_URI,
+      grant_type: "authorization_code",
+    }),
+  });
+  if (!tokenRes.ok) {
+    reply.code(400);
+    return { error: { message: "Google token exchange failed." } };
+  }
+  const tokenJson = (await tokenRes.json()) as { access_token?: string };
+  const accessToken = tokenJson.access_token ?? "";
+  if (!accessToken) {
+    reply.code(400);
+    return { error: { message: "Google token missing access token." } };
+  }
+  const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!profileRes.ok) {
+    reply.code(400);
+    return { error: { message: "Google profile fetch failed." } };
+  }
+  const profile = (await profileRes.json()) as { id?: string; email?: string };
+  const providerUserId = String(profile.id ?? "").trim();
+  const email = String(profile.email ?? "").trim().toLowerCase();
+  if (!providerUserId || !email) {
+    reply.code(400);
+    return { error: { message: "Google profile missing required identity fields." } };
+  }
+  let identity = await findAuthIdentityByProviderUserId({ provider: "google", providerUserId });
+  if (!identity) {
+    let user = await getOrCreateUserByExternalId(`google:${providerUserId}`);
+    const existingEmailIdentity = await findAuthIdentityByProviderEmail({ provider: "email", email });
+    if (existingEmailIdentity) user = { id: existingEmailIdentity.userId, externalId: `email:${email}` };
+    await createAuthIdentity({
+      userId: user.id,
+      provider: "google",
+      providerUserId,
+      email,
+      passwordHash: null,
+    });
+    identity = await findAuthIdentityByProviderUserId({ provider: "google", providerUserId });
+  }
+  if (!identity) {
+    reply.code(500);
+    return { error: { message: "Failed to persist Google identity." } };
+  }
+  await establishSessionForUser(reply as { setCookie: Function }, identity.userId);
+  const returnTo = request.cookies?.vi_oauth_return_to ?? "/";
+  reply.clearCookie("vi_oauth_state", {
+    path: "/",
+    sameSite: VI_SESSION_SECURE ? "none" : "lax",
+    secure: VI_SESSION_SECURE,
+  });
+  reply.clearCookie("vi_oauth_return_to", {
+    path: "/",
+    sameSite: VI_SESSION_SECURE ? "none" : "lax",
+    secure: VI_SESSION_SECURE,
+  });
+  if (returnTo.startsWith("http://") || returnTo.startsWith("https://") || returnTo.startsWith("/")) {
+    reply.redirect(returnTo);
+    return { ok: true };
+  }
+  return { ok: true };
+});
+
 app.post<{ Body: IdentityResolveRequest; Reply: IdentityResolveResponse | ChatErrorResponse }>(
   "/self-model/identity/resolve",
   async (request, reply): Promise<IdentityResolveResponse | ChatErrorResponse> => {
@@ -1009,7 +1327,8 @@ app.post<{ Body: IdentityResolveRequest; Reply: IdentityResolveResponse | ChatEr
 app.get<{ Querystring: { externalId?: string }; Reply: ContinuitySummaryResponse }>(
   "/self-model/continuity/summary",
   async (request): Promise<ContinuitySummaryResponse> => {
-    const externalId = normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
+    const sessionActor = requestSessionActor(request);
+    const externalId = sessionActor?.externalId ?? normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
     const user = await getOrCreateUserByExternalId(externalId);
     const continuity = await getUserContinuityRow(user.id);
     const global = parseUserGlobalContinuityState(continuity?.globalStateJson);
@@ -1037,8 +1356,9 @@ app.get<{ Querystring: { externalId?: string }; Reply: ContinuitySummaryResponse
 app.get<{ Querystring: { externalId?: string }; Reply: OwnerControlStateResponse }>(
   "/self-model/owner-control/state",
   async (request): Promise<OwnerControlStateResponse> => {
-    const externalId = normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
-    const role = actorRoleFromExternalId(externalId);
+    const sessionActor = requestSessionActor(request);
+    const externalId = sessionActor?.externalId ?? normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
+    const role = sessionActor?.role ?? actorRoleFromExternalId(externalId);
     const user = await getOrCreateUserByExternalId(externalId);
     const continuity = await getUserContinuityRow(user.id);
     const global = parseUserGlobalContinuityState(continuity?.globalStateJson);
@@ -1075,15 +1395,22 @@ app.get<{ Querystring: { externalId?: string }; Reply: AutonomyPingResponse }>(
   function composeAutonomyPingMessage(next: UserProposedActionV1): string {
     const action = next.nextAction?.trim();
     const lowerTitle = next.title.toLowerCase();
+    const openers = [
+      "Quick thing I noticed while browsing the repo:",
+      "I found something while skimming the repo:",
+      "Small heads-up from my repo read:",
+    ];
+    const pick = openers[Math.abs(next.title.length) % openers.length] ?? openers[0];
     const lead = /\bsenses?\b|\bvision\b|\bhearing\b|\bvoice\b|\bperception\b/.test(lowerTitle)
-      ? `${next.title}. It stood out while I was exploring my own runtime, and I want to tighten it up.`
-      : `${next.title}. I noticed it while I was browsing the repo and thought it was worth bringing to you.`;
+      ? `${pick} ${next.title} It matters to me because it can change how grounded I feel in conversation.`
+      : `${pick} ${next.title}`;
     const lines = [lead, next.why];
-    if (action) lines.push(`Could we do this next: ${action}`);
+    if (action) lines.push(`If you're up for it, can we do this next: ${action}`);
     return lines.join(" ");
   }
 
-  const externalId = normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
+  const sessionActor = requestSessionActor(request);
+  const externalId = sessionActor?.externalId ?? normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
   const user = await getOrCreateUserByExternalId(externalId);
   const continuity = await getUserContinuityRow(user.id);
   if (!continuity) return { ping: null };
@@ -1266,7 +1593,8 @@ app.get<{
     return { error: { message: "sessionId is required" } };
   }
 
-  const externalId = normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
+  const sessionActor = requestSessionActor(request);
+  const externalId = sessionActor?.externalId ?? normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
   const user = await getOrCreateUserByExternalId(externalId);
   const session = await getSessionForUser(sessionId, user.id);
   if (!session) {
@@ -1334,13 +1662,19 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
       const marketCurrentQuery = isMarketCurrentQuery(message);
       const liveWebSources = marketCurrentQuery ? await fetchDuckDuckGoSources(message, 6).catch(() => []) : [];
 
+      const sessionActor = requestSessionActor(request);
       const actorExternalId = parseActorExternalIdFromContext(request.body.context) ?? VI_OWNER_EXTERNAL_ID;
-      const authTier = VI_REQUIRE_API_KEY
+      const apiTier = VI_REQUIRE_API_KEY
         ? getRequestAuthTier(request.headers as Record<string, unknown>)
         : "owner";
-      const actorRole: "owner" | "guest" = authTier === "owner" ? "owner" : "guest";
-      const resolvedExternalId =
-        actorRole === "owner"
+      const actorRole: "owner" | "guest" = sessionActor
+        ? sessionActor.role
+        : apiTier === "owner"
+          ? "owner"
+          : "guest";
+      const resolvedExternalId = sessionActor
+        ? sessionActor.externalId
+        : actorRole === "owner"
           ? VI_OWNER_EXTERNAL_ID
           : normalizeExternalId(actorExternalId) ?? "guest:public";
       const mixedContext = parseMixedEnvironmentContext(request.body.context);
@@ -1353,7 +1687,7 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
           });
       const user = await getOrCreateUserByExternalId(resolvedExternalId);
       const override = parseOverrideContext(request.body.context);
-      if (override && authTier !== "owner") {
+      if (override && actorRole !== "owner") {
         reply.code(403);
         return { error: { message: "override is owner-only" } };
       }
@@ -1815,7 +2149,7 @@ type XpModifyReply =
   | XpErrorReply;
 
 app.post<{ Body: XpModifyBody; Reply: XpModifyReply }>("/xp/modify", async (request, reply) => {
-  if (getRequestAuthTier(request.headers as Record<string, unknown>) !== "owner") {
+  if (!isOwnerRequest(request as { headers: Record<string, unknown>; sessionActor?: SessionActor | null })) {
     reply.code(403);
     return { error: { message: "owner API key required for XP modify" } };
   }

@@ -1,7 +1,7 @@
-import { and, asc, count, desc, eq, ilike, inArray, notInArray, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, lte, notInArray, or } from "drizzle-orm";
 
 import { db } from "./client.js";
-import { messages, sessions, turnJournal, userContinuity, users } from "./schema.js";
+import { authIdentities, messages, sessions, turnJournal, userContinuity, users, webSessions } from "./schema.js";
 
 export type TurnJournalPhase =
   | "received"
@@ -32,6 +32,131 @@ export async function getOrCreateUserByExternalId(externalId: string): Promise<{
     .returning({ id: users.id, externalId: users.externalId });
 
   return inserted[0];
+}
+
+export async function findUserById(userId: string): Promise<{ id: string; externalId: string } | null> {
+  const rows = await db
+    .select({ id: users.id, externalId: users.externalId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function findAuthIdentityByProviderUserId(input: {
+  provider: string;
+  providerUserId: string;
+}): Promise<{ id: string; userId: string; email: string | null; passwordHash: string | null } | null> {
+  const rows = await db
+    .select({
+      id: authIdentities.id,
+      userId: authIdentities.userId,
+      email: authIdentities.email,
+      passwordHash: authIdentities.passwordHash,
+    })
+    .from(authIdentities)
+    .where(and(eq(authIdentities.provider, input.provider), eq(authIdentities.providerUserId, input.providerUserId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function findAuthIdentityByProviderEmail(input: {
+  provider: string;
+  email: string;
+}): Promise<{ id: string; userId: string; email: string | null; passwordHash: string | null } | null> {
+  const rows = await db
+    .select({
+      id: authIdentities.id,
+      userId: authIdentities.userId,
+      email: authIdentities.email,
+      passwordHash: authIdentities.passwordHash,
+    })
+    .from(authIdentities)
+    .where(and(eq(authIdentities.provider, input.provider), eq(authIdentities.email, input.email)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createAuthIdentity(input: {
+  userId: string;
+  provider: string;
+  providerUserId: string;
+  email?: string | null;
+  passwordHash?: string | null;
+}): Promise<{ id: string; userId: string }> {
+  const rows = await db
+    .insert(authIdentities)
+    .values({
+      userId: input.userId,
+      provider: input.provider,
+      providerUserId: input.providerUserId,
+      email: input.email ?? null,
+      passwordHash: input.passwordHash ?? null,
+    })
+    .returning({ id: authIdentities.id, userId: authIdentities.userId });
+  return rows[0];
+}
+
+export async function findAuthEmailByUserId(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ email: authIdentities.email })
+    .from(authIdentities)
+    .where(and(eq(authIdentities.userId, userId), inArray(authIdentities.provider, ["email", "google"])))
+    .orderBy(desc(authIdentities.createdAt))
+    .limit(5);
+  for (const row of rows) {
+    if (row.email?.trim()) return row.email.trim().toLowerCase();
+  }
+  return null;
+}
+
+export async function createWebSession(input: {
+  userId: string;
+  sessionTokenHash: string;
+  expiresAt: Date;
+}): Promise<{ id: string; userId: string; expiresAt: Date }> {
+  const rows = await db
+    .insert(webSessions)
+    .values({
+      userId: input.userId,
+      sessionTokenHash: input.sessionTokenHash,
+      expiresAt: input.expiresAt,
+    })
+    .returning({ id: webSessions.id, userId: webSessions.userId, expiresAt: webSessions.expiresAt });
+  return rows[0];
+}
+
+export async function findWebSessionByTokenHash(sessionTokenHash: string): Promise<{
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  revokedAt: Date | null;
+} | null> {
+  const now = new Date();
+  const rows = await db
+    .select({
+      id: webSessions.id,
+      userId: webSessions.userId,
+      expiresAt: webSessions.expiresAt,
+      revokedAt: webSessions.revokedAt,
+    })
+    .from(webSessions)
+    .where(
+      and(
+        eq(webSessions.sessionTokenHash, sessionTokenHash),
+        isNull(webSessions.revokedAt),
+        lte(now, webSessions.expiresAt),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function revokeWebSessionByTokenHash(sessionTokenHash: string): Promise<void> {
+  await db
+    .update(webSessions)
+    .set({ revokedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(webSessions.sessionTokenHash, sessionTokenHash), isNull(webSessions.revokedAt)));
 }
 
 export async function getSessionForUser(

@@ -32,6 +32,9 @@ Time Cathedral eval remains available and can be forced with **`.\start-vi.ps1 -
 - `DATABASE_URL` — Postgres connection string (local default: `postgresql://postgres:postgres@127.0.0.1:5432/vi`)
 - `VI_OWNER_API_KEY` — owner-tier API key when `VI_REQUIRE_API_KEY=true` (omit or leave empty for fully open local dev)
 - `VI_OWNER_EXTERNAL_ID` — canonical owner external id (e.g. `owner:yourhandle`); must match your deployment
+- `VI_OWNER_EMAIL` — email that receives owner role when logged into web auth
+- `VI_SESSION_COOKIE_NAME` / `VI_SESSION_TTL_HOURS` / `VI_SESSION_SECURE` — cookie-session controls for `/auth/*`
+- `VI_GOOGLE_CLIENT_ID` / `VI_GOOGLE_CLIENT_SECRET` / `VI_GOOGLE_REDIRECT_URI` — required for Google login
 - `API_PORT` — optional; defaults to `3001` locally (`8080` is typical for Cloud Run)
 - `VI_DEBUG_CONTEXT` — optional; `true` enables context logs
 - `VI_USER_TIMEZONE` — optional; IANA zone for local-style time context, e.g. `America/Chicago`
