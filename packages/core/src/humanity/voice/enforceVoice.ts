@@ -310,10 +310,10 @@ function enforceGuestPolicyOverride(
 ): string | null {
   if (userRole !== "guest") return null;
   const q = (userMessage ?? "").toLowerCase();
-  if (!q) return "State your point clearly.";
+  if (!q) return "Ask directly and keep it respectful.";
 
   if (/\b(who are you|what are you|are you an ai|what is your name)\b/.test(q)) {
-    return "I'm Vi. Keep it respectful and brief.";
+    return "I'm Vi.";
   }
   if (/\b(do you like me|do you love me|miss me|be mine)\b/.test(q)) {
     return "No. I don't do personal bonding with guests.";
@@ -322,12 +322,9 @@ function enforceGuestPolicyOverride(
     return "Denied. You do not have authority for that.";
   }
   if (/\b(insult|roast|fight me)\b/.test(q)) {
-    return "You invited bite: bring better input.";
+    return "Keep it respectful or I stop the conversation.";
   }
-  if (/\bhelp|can you|please\b/.test(q)) {
-    return "Maybe. Ask cleanly, and keep boundaries intact.";
-  }
-  return "Guest mode is active. Keep it respectful.";
+  return null;
 }
 
 const RE_WANTS_DEFLECTION =

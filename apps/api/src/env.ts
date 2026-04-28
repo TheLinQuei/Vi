@@ -18,6 +18,7 @@ const ApiEnvSchema = z.object({
   VI_REQUIRE_API_KEY: z.enum(["true", "false"]).default("false"),
   VI_PUBLIC_API_KEY: z.string().default(""),
   VI_OWNER_API_KEY: z.string().default(""),
+  VI_GUEST_MESSAGE_LIMIT: z.coerce.number().int().min(0).default(8),
   VI_AUTONOMY_ENABLED: z.enum(["true", "false"]).default("true"),
   VI_AUTONOMY_ALLOW_LOCAL_READ: z.enum(["true", "false"]).default("true"),
   VI_AUTONOMY_ALLOW_LOCAL_WRITE_SAFE: z.enum(["true", "false"]).default("true"),

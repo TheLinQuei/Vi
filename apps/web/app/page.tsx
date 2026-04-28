@@ -47,7 +47,7 @@ type ChatMessage = ChatHistoryMessage;
 type ChatError = {
   error: {
     message: string;
-    code?: "UPSTREAM_QUOTA_LIMIT" | "UPSTREAM_RATE_LIMIT" | "INTERNAL_ERROR";
+    code?: "UPSTREAM_QUOTA_LIMIT" | "UPSTREAM_RATE_LIMIT" | "INTERNAL_ERROR" | "SIGNUP_REQUIRED";
   };
 };
 
@@ -70,6 +70,9 @@ function getChatErrorMessage(
     }
     if (code === "UPSTREAM_RATE_LIMIT") {
       return "Provider rate limit hit. Wait a moment and retry.";
+    }
+    if (code === "SIGNUP_REQUIRED") {
+      return "Guest limit reached. Sign in is required for more messages.";
     }
     if (typeof msg === "string" && msg.trim().length > 0) return msg;
   }
@@ -126,6 +129,8 @@ const API_BASE_URL =
   envBase && envBase.length > 0 ? envBase.replace(/\/$/, "") : "http://127.0.0.1:3001";
 const API_KEY = process.env.NEXT_PUBLIC_VI_API_KEY?.trim() ?? "";
 const ACTOR_EXTERNAL_ID = process.env.NEXT_PUBLIC_ACTOR_EXTERNAL_ID?.trim() ?? "owner:you";
+const GUEST_MESSAGE_LIMIT = Math.max(1, Number(process.env.NEXT_PUBLIC_GUEST_MESSAGE_LIMIT ?? "8"));
+const IS_PUBLIC_GUEST_CLIENT = /^vi_pub_/i.test(API_KEY);
 
 function apiHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -163,6 +168,7 @@ export default function Page() {
   const [historyReady, setHistoryReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
+  const [showSignupModal, setShowSignupModal] = useState(false);
   const [persistReady, setPersistReady] = useState(false);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [hasMounted, setHasMounted] = useState(false);
@@ -194,6 +200,10 @@ export default function Page() {
   const canSend = useMemo(
     () => text.trim().length > 0 && !isLoading && historyReady,
     [text, isLoading, historyReady],
+  );
+  const guestMessagesSent = useMemo(
+    () => messages.filter((m) => m.role === "user").length,
+    [messages],
   );
 
   useEffect(() => {
@@ -528,6 +538,10 @@ export default function Page() {
     event.preventDefault();
     const normalized = text.replace(/\r\n/g, "\n");
     if (!normalized.trim() || isLoading || !historyReady) return;
+    if (IS_PUBLIC_GUEST_CLIENT && guestMessagesSent >= GUEST_MESSAGE_LIMIT) {
+      setShowSignupModal(true);
+      return;
+    }
     const message = normalized;
 
     setError(null);
@@ -558,6 +572,9 @@ export default function Page() {
         data = null;
       }
       if (!response.ok) {
+        if (data && typeof data === "object" && "error" in data && data.error?.code === "SIGNUP_REQUIRED") {
+          setShowSignupModal(true);
+        }
         const messageText = getChatErrorMessage(response, data, raw);
         setError(messageText);
         console.error("[Vi chat error]", {
@@ -1071,7 +1088,61 @@ export default function Page() {
         </form>
         {error ? <p style={{ color: "#fca5a5", marginBottom: 0 }}>{error}</p> : null}
         {providerNotice ? <p style={{ color: "#fbbf24", marginBottom: 0 }}>{providerNotice}</p> : null}
+        {IS_PUBLIC_GUEST_CLIENT ? (
+          <p style={{ color: "#94a3b8", marginBottom: 0, fontSize: 12 }}>
+            Guest messages used: {Math.min(guestMessagesSent, GUEST_MESSAGE_LIMIT)}/{GUEST_MESSAGE_LIMIT}
+          </p>
+        ) : null}
       </section>
+
+      {showSignupModal ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2, 6, 23, 0.72)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              width: "min(480px, 100%)",
+              border: "1px solid #334155",
+              borderRadius: 12,
+              background: "#0f172a",
+              color: "#e2e8f0",
+              padding: 16,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 18, color: "#f8fafc" }}>Sign-in required</h2>
+            <p style={{ marginTop: 10, marginBottom: 0, lineHeight: 1.5 }}>
+              You have used {GUEST_MESSAGE_LIMIT} guest messages. Sign-in flow is the next step; once it is wired, this
+              will route you there.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSignupModal(false)}
+              style={{
+                marginTop: 14,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid #475569",
+                background: "#111827",
+                color: "#e2e8f0",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {showOperatorPanels ? (
         <aside

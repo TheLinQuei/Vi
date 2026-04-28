@@ -314,12 +314,13 @@ function createIdleReflections(input: {
 }): UserIdleReflectionV1[] {
   const out: UserIdleReflectionV1[] = [];
   for (const d of input.changedDigests.slice(0, 3)) {
+    const shortPath = d.filePath.split("/").slice(-2).join("/");
     out.push({
       at: input.nowIso,
       kind: "repo_change_reflection",
       source: "repo_digest",
       topicRefs: [d.filePath],
-      text: `I noticed ${d.filePath} changed, which may shift continuity or behavior shape.`,
+      text: `I was reading the repo and noticed a change in ${shortPath}. It might affect how I respond around that flow.`,
       confidence: d.retentionTier === "active" ? "high" : "medium",
     });
   }
@@ -330,7 +331,7 @@ function createIdleReflections(input: {
       kind: "proposal_note",
       source: "proposal_queue",
       topicRefs: [p.title],
-      text: `I queued a next step: ${p.title}.`,
+      text: `I queued a follow-up idea: ${p.title}`,
       confidence: p.relevance === "high" ? "high" : "medium",
     });
   }
@@ -532,9 +533,9 @@ export async function runUserGlobalIdleRuntimeTick(input: {
     const top = changedDigests[0];
     const candidate: UserProposedActionV1 = {
       at: nowIso,
-      title: `Review changed file: ${top.filePath}`,
-      why: "Idle runtime detected repository change that may affect continuity or behavior.",
-      nextAction: `Open ${top.filePath} and summarize behavioral impact in 2-3 bullets.`,
+      title: `I spotted a repo change in ${top.filePath}`,
+      why: "A recent code change might impact behavior or continuity in chat.",
+      nextAction: `Open ${top.filePath} and jot 2-3 bullets on what user-facing behavior could change.`,
       relevance: top.retentionTier === "active" ? "high" : "medium",
     };
     const proposalGate = shouldEnqueueProposal({

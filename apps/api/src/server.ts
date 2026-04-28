@@ -149,6 +149,7 @@ const VI_AUTONOMY_MIN_RELEVANCE = apiEnv.VI_AUTONOMY_MIN_RELEVANCE;
 const VI_REQUIRE_API_KEY = apiEnv.VI_REQUIRE_API_KEY === "true";
 const VI_PUBLIC_API_KEY = apiEnv.VI_PUBLIC_API_KEY.trim();
 const VI_OWNER_API_KEY = apiEnv.VI_OWNER_API_KEY.trim();
+const VI_GUEST_MESSAGE_LIMIT = apiEnv.VI_GUEST_MESSAGE_LIMIT;
 
 app.addHook("onRequest", async (request, reply) => {
   if (!VI_REQUIRE_API_KEY) return;
@@ -1119,9 +1120,9 @@ app.get<{ Querystring: { externalId?: string }; Reply: AutonomyPingResponse }>(
       at: next.at,
       title: next.title,
       message: [
-        `Idle finding: ${next.title}`,
-        `Why it matters: ${next.why}`,
-        `Suggested next action: ${next.nextAction ?? "Review details and decide whether to apply a follow-up change."}`,
+        `Hey, I was reading through the repo and noticed: ${next.title}`,
+        `Why this might matter: ${next.why}`,
+        `If you want, next move could be: ${next.nextAction ?? "Review details and decide whether to apply a follow-up change."}`,
       ].join("\n"),
       nextAction: next.nextAction,
       relevance: next.relevance,
@@ -1426,6 +1427,16 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
       );
 
       const history = await listRecentMessages(session.id, HISTORY_LIMIT);
+      const guestMessagesUsed = history.filter((m) => m.role === "user").length;
+      if (actorRole === "guest" && VI_GUEST_MESSAGE_LIMIT > 0 && guestMessagesUsed >= VI_GUEST_MESSAGE_LIMIT) {
+        reply.code(402);
+        return {
+          error: {
+            code: "SIGNUP_REQUIRED",
+            message: "Guest message limit reached. Sign in to continue chatting.",
+          },
+        };
+      }
       const rollingFields = await getSessionRollingSummaryFields(session.id);
       const rollingSummary = rollingFields?.rollingSummary ?? null;
       const continuityRowAtTurnStart = await getUserContinuityRow(user.id);
