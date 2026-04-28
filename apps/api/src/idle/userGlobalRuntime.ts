@@ -419,6 +419,27 @@ function shouldEnqueueProposal(input: {
   return { ok: true, reason: "eligible" };
 }
 
+function buildNaturalProposal(nowIso: string, top: UserRepoDigestV1): UserProposedActionV1 {
+  const fp = top.filePath.toLowerCase();
+  const isSenses = /\bsenses?\b|\bperception\b|\bvision\b|\bhearing\b|\bvoice\b/.test(fp);
+  if (isSenses) {
+    return {
+      at: nowIso,
+      title: `I found a senses-related gap in ${top.filePath}`,
+      why: "If one of my sensing pathways is thin or missing, my behavior can feel flat or disconnected in chat.",
+      nextAction: `Open ${top.filePath} and map what is wired vs missing for seeing/hearing/speaking style signals.`,
+      relevance: "high",
+    };
+  }
+  return {
+    at: nowIso,
+    title: `I noticed a meaningful change in ${top.filePath}`,
+    why: "This file is likely to influence how I reason or respond.",
+    nextAction: `Open ${top.filePath} and note 2-3 user-visible behavior changes we should watch.`,
+    relevance: top.retentionTier === "active" ? "high" : "medium",
+  };
+}
+
 function runSafeChecks(snapshot: RepoFileMeta[]): Array<{ name: string; status: "ok" | "warn"; detail: string }> {
   const hasServer = snapshot.some((f) => f.filePath === "apps/api/src/server.ts");
   const hasContract = snapshot.some((f) => f.filePath === "docs/architecture/13-vi-v1-canonical-contract.md");
@@ -531,13 +552,7 @@ export async function runUserGlobalIdleRuntimeTick(input: {
   let proposals = input.currentProposals;
   if (changedDigests.length > 0) {
     const top = changedDigests[0];
-    const candidate: UserProposedActionV1 = {
-      at: nowIso,
-      title: `I spotted a repo change in ${top.filePath}`,
-      why: "A recent code change might impact behavior or continuity in chat.",
-      nextAction: `Open ${top.filePath} and jot 2-3 bullets on what user-facing behavior could change.`,
-      relevance: top.retentionTier === "active" ? "high" : "medium",
-    };
+    const candidate = buildNaturalProposal(nowIso, top);
     const proposalGate = shouldEnqueueProposal({
       nowIso,
       existingProposals: proposals,

@@ -1072,6 +1072,17 @@ app.get<{ Querystring: { externalId?: string }; Reply: OwnerControlStateResponse
 app.get<{ Querystring: { externalId?: string }; Reply: AutonomyPingResponse }>(
   "/self-model/autonomy-ping",
   async (request): Promise<AutonomyPingResponse> => {
+  function composeAutonomyPingMessage(next: UserProposedActionV1): string {
+    const action = next.nextAction?.trim();
+    const lowerTitle = next.title.toLowerCase();
+    const lead = /\bsenses?\b|\bvision\b|\bhearing\b|\bvoice\b|\bperception\b/.test(lowerTitle)
+      ? `${next.title}. It stood out while I was exploring my own runtime, and I want to tighten it up.`
+      : `${next.title}. I noticed it while I was browsing the repo and thought it was worth bringing to you.`;
+    const lines = [lead, next.why];
+    if (action) lines.push(`Could we do this next: ${action}`);
+    return lines.join(" ");
+  }
+
   const externalId = normalizeExternalId(request.query.externalId) ?? VI_OWNER_EXTERNAL_ID;
   const user = await getOrCreateUserByExternalId(externalId);
   const continuity = await getUserContinuityRow(user.id);
@@ -1119,11 +1130,7 @@ app.get<{ Querystring: { externalId?: string }; Reply: AutonomyPingResponse }>(
       id: `${next.at}|${next.title}`,
       at: next.at,
       title: next.title,
-      message: [
-        `Hey, I was reading through the repo and noticed: ${next.title}`,
-        `Why this might matter: ${next.why}`,
-        `If you want, next move could be: ${next.nextAction ?? "Review details and decide whether to apply a follow-up change."}`,
-      ].join("\n"),
+      message: composeAutonomyPingMessage(next),
       nextAction: next.nextAction,
       relevance: next.relevance,
     },
