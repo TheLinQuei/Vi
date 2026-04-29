@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  apiMisconfigurationHint,
+  getPublicApiBaseUrl,
+  parseApiErrorMessage,
+} from "../../lib/apiPublic";
 
-const envBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-const API_BASE_URL = envBase && envBase.length > 0 ? envBase.replace(/\/$/, "") : "http://127.0.0.1:3001";
+const API_BASE_URL = getPublicApiBaseUrl();
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -19,6 +23,11 @@ export default function LoginPage() {
     setError(null);
     setIsLoading(true);
     try {
+      const hint = apiMisconfigurationHint(window.location.hostname, API_BASE_URL);
+      if (hint) {
+        setError(hint);
+        return;
+      }
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -26,8 +35,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
-        setError(body?.error?.message ?? "Login failed.");
+        setError(await parseApiErrorMessage(res));
         return;
       }
       router.push("/");
@@ -42,6 +50,11 @@ export default function LoginPage() {
   async function loginWithGoogle(): Promise<void> {
     setError(null);
     try {
+      const hint = apiMisconfigurationHint(window.location.hostname, API_BASE_URL);
+      if (hint) {
+        setError(hint);
+        return;
+      }
       const returnTo = `${window.location.origin}/`;
       const res = await fetch(`${API_BASE_URL}/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`, {
         credentials: "include",
