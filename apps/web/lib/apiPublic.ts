@@ -4,7 +4,7 @@ export function getPublicApiBaseUrl(): string {
   return envBase && envBase.length > 0 ? envBase.replace(/\/$/, "") : "http://127.0.0.1:3001";
 }
 
-/** Detect browsing a deployed site while the bundle still targets localhost. */
+/** Detect common web/API URL mismatches that manifest as opaque network errors. */
 export function apiMisconfigurationHint(hostname: string, apiBase: string): string | null {
   const apiLooksLocal = apiBase.includes("127.0.0.1") || apiBase.includes("localhost");
   const pageLooksDeployed = hostname !== "localhost" && hostname !== "127.0.0.1";
@@ -14,7 +14,24 @@ export function apiMisconfigurationHint(hostname: string, apiBase: string): stri
       "Set NEXT_PUBLIC_API_BASE_URL to your Cloud Run API URL, rebuild, and redeploy the web app."
     );
   }
+  const pageIsHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const apiIsHttp = /^http:\/\//i.test(apiBase);
+  if (pageIsHttps && apiIsHttp) {
+    return (
+      "This web app is on HTTPS but NEXT_PUBLIC_API_BASE_URL is HTTP. " +
+      "Use an HTTPS API URL (Cloud Run default), rebuild, and redeploy the web app."
+    );
+  }
   return null;
+}
+
+/** Better UX for fetch() failures (CORS/mixed-content/DNS show as generic TypeError). */
+export function parseApiNetworkError(err: unknown, apiBase: string): string {
+  const message =
+    err instanceof Error && typeof err.message === "string" && err.message.trim().length > 0
+      ? err.message.trim()
+      : "Network request failed.";
+  return `${message} Check NEXT_PUBLIC_API_BASE_URL and API CORS. Current API base: ${apiBase}`;
 }
 
 /** Prefer JSON error.message; otherwise surface status and body snippet (e.g. HTML proxy errors). */

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   apiMisconfigurationHint,
   getPublicApiBaseUrl,
+  parseApiNetworkError,
   parseApiErrorMessage,
 } from "../../lib/apiPublic";
 
@@ -40,8 +41,8 @@ export default function LoginPage() {
       }
       router.push("/");
       router.refresh();
-    } catch {
-      setError("Login failed due to network error.");
+    } catch (err) {
+      setError(parseApiNetworkError(err, API_BASE_URL));
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +66,8 @@ export default function LoginPage() {
         return;
       }
       window.location.href = body.url;
-    } catch {
-      setError("Google login failed to start.");
+    } catch (err) {
+      setError(parseApiNetworkError(err, API_BASE_URL));
     }
   }
 

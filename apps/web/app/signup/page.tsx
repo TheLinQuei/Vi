@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   apiMisconfigurationHint,
   getPublicApiBaseUrl,
+  parseApiNetworkError,
   parseApiErrorMessage,
 } from "../../lib/apiPublic";
 
@@ -40,8 +41,8 @@ export default function SignupPage() {
       }
       router.push("/");
       router.refresh();
-    } catch {
-      setError("Signup failed due to network error.");
+    } catch (err) {
+      setError(parseApiNetworkError(err, API_BASE_URL));
     } finally {
       setIsLoading(false);
     }
