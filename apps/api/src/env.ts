@@ -32,6 +32,9 @@ const ApiEnvSchema = z.object({
   VI_AUTONOMY_ALLOW_LOCAL_WRITE_SAFE: z.enum(["true", "false"]).default("true"),
   VI_AUTONOMY_ALLOW_EXTERNAL_NOTIFY: z.enum(["true", "false"]).default("true"),
   VI_AUTONOMY_ALLOW_EXTERNAL_ACT: z.enum(["true", "false"]).default("true"),
+  VI_RUNTIME_PROFILE: z.enum(["balanced", "smart_core"]).default("balanced"),
+  VI_ALLOW_PROACTIVE_PINGS: z.enum(["true", "false"]).default("true"),
+  VI_INCLUDE_PASSIVE_PENDING_MENTION: z.enum(["true", "false"]).default("true"),
   DATABASE_URL: z.string().min(1),
 });
 

@@ -154,6 +154,17 @@ const ACTOR_EXTERNAL_ID = process.env.NEXT_PUBLIC_ACTOR_EXTERNAL_ID?.trim() ?? "
 const GUEST_MESSAGE_LIMIT = Math.max(1, Number(process.env.NEXT_PUBLIC_GUEST_MESSAGE_LIMIT ?? "8"));
 const IS_PUBLIC_GUEST_CLIENT = /^vi_pub_/i.test(API_KEY);
 
+function replyAlreadyContainsRepoFinding(reply: string): boolean {
+  const t = reply.toLowerCase();
+  return (
+    /\brepo\b/.test(t) ||
+    /\bscan(ned|ning)?\b/.test(t) ||
+    /\bnoticed?\b/.test(t) ||
+    /\bchange(s|d)?\b/.test(t) ||
+    /`[^`]+`/.test(reply)
+  );
+}
+
 function apiHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (API_KEY) headers.Authorization = `Bearer ${API_KEY}`;
@@ -230,6 +241,7 @@ export default function Page() {
     () => messages.filter((m) => m.role === "user").length,
     [messages],
   );
+  const isOwnerSession = authMe?.role === "owner";
 
   useEffect(() => {
     const run = async () => {
@@ -598,7 +610,7 @@ export default function Page() {
     event.preventDefault();
     const normalized = text.replace(/\r\n/g, "\n");
     if (!normalized.trim() || isLoading || !historyReady) return;
-    if (IS_PUBLIC_GUEST_CLIENT && guestMessagesSent >= GUEST_MESSAGE_LIMIT) {
+    if (IS_PUBLIC_GUEST_CLIENT && !isOwnerSession && guestMessagesSent >= GUEST_MESSAGE_LIMIT) {
       setShowSignupModal(true);
       return;
     }
@@ -697,6 +709,7 @@ export default function Page() {
         q,
       );
       const nextStepCheck = /\b(what should we do|what next|where should i look|show me|help me)\b/i.test(q);
+      const replyAlreadyCoveredFinding = replyAlreadyContainsRepoFinding(success.reply);
       let stagedFollowUp: ChatMessage | null = null;
       let nextPingState: PendingAutonomyPing | null = pendingAutonomyPing;
 
@@ -707,7 +720,7 @@ export default function Page() {
           createdAt: new Date().toISOString(),
         };
         nextPingState = { ...pendingAutonomyPing, stage: 1 };
-      } else if (pendingAutonomyPing?.stage === 1 && interestCheck) {
+      } else if (pendingAutonomyPing?.stage === 1 && interestCheck && !replyAlreadyCoveredFinding) {
         const firstBeat = pendingAutonomyPing.message.split(". ").slice(0, 1).join(". ").trim();
         stagedFollowUp = {
           role: "assistant",
@@ -742,7 +755,11 @@ export default function Page() {
 
         return nextMessages;
       });
-      if (nextPingState !== pendingAutonomyPing) setPendingAutonomyPing(nextPingState);
+      if (replyAlreadyCoveredFinding && pendingAutonomyPing?.stage === 1) {
+        setPendingAutonomyPing({ ...pendingAutonomyPing, stage: 2 });
+      } else if (nextPingState !== pendingAutonomyPing) {
+        setPendingAutonomyPing(nextPingState);
+      }
     } catch {
       setError("Could not reach the API.");
       setMessages((prev) => {
@@ -1237,7 +1254,7 @@ export default function Page() {
         </form>
         {error ? <p style={{ color: "#fca5a5", marginBottom: 0 }}>{error}</p> : null}
         {providerNotice ? <p style={{ color: "#fbbf24", marginBottom: 0 }}>{providerNotice}</p> : null}
-        {IS_PUBLIC_GUEST_CLIENT ? (
+        {IS_PUBLIC_GUEST_CLIENT && !isOwnerSession ? (
           <p style={{ color: "#94a3b8", marginBottom: 0, fontSize: 12 }}>
             Guest messages used: {Math.min(guestMessagesSent, GUEST_MESSAGE_LIMIT)}/{GUEST_MESSAGE_LIMIT}
           </p>

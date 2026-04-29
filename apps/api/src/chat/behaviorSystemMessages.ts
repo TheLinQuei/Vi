@@ -32,6 +32,7 @@ function buildLearnedFactsSystemMessage(learnedFacts: Array<{ at: string; fact: 
 export function buildBehaviorSystemMessagesFromUnifiedState(input: {
   unifiedState: ViUnifiedStateV1;
   displayTimeZone?: string;
+  includePendingMention?: boolean;
 }): Array<{ role: "system"; content: string }> {
   const { unifiedState } = input;
   const temporalBlock = buildTemporalContextSystemMessage({
@@ -91,7 +92,7 @@ export function buildBehaviorSystemMessagesFromUnifiedState(input: {
     ? ([{ role: "system" as const, content: milestonesBlock }] as const)
     : [];
 
-  const pendingMentionBlock = unifiedState.passive.pendingMention
+  const pendingMentionBlock = input.includePendingMention !== false && unifiedState.passive.pendingMention
     ? ([
         {
           role: "system" as const,

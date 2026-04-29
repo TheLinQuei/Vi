@@ -22,23 +22,104 @@ export function getActiveProviderModel(): ActiveProviderModel {
   return { provider, model: orchEnv.OPENAI_MODEL };
 }
 
-function selectModelForTurn(responseMode?: "descriptive" | "evaluative"): string {
+type TurnTask = "default" | "reasoning" | "code" | "creative";
+
+function detectTurnTask(message: string, history: ChatHistoryMessage[]): TurnTask {
+  const text = `${history.slice(-2).map((h) => h.content).join("\n")}\n${message}`.toLowerCase();
+  if (
+    /\b(code|typescript|javascript|python|sql|query|stack trace|traceback|refactor|function|class|compile|bug|error|test case|unit test|regex|api endpoint)\b/.test(
+      text,
+    )
+  ) {
+    return "code";
+  }
+  if (
+    /\b(write a story|poem|lyrics|creative|roleplay|scene|fiction|character dialogue|brainstorm names|worldbuilding)\b/.test(
+      text,
+    )
+  ) {
+    return "creative";
+  }
+  if (
+    /\b(compare|trade-?off|architecture|plan|strategy|why|analyze|diagnose|root cause|evaluate|reason step|decision)\b/.test(
+      text,
+    )
+  ) {
+    return "reasoning";
+  }
+  return "default";
+}
+
+function selectModelForTurn(input: {
+  responseMode?: "descriptive" | "evaluative";
+  message: string;
+  history: ChatHistoryMessage[];
+}): { model: string; task: TurnTask } {
   const provider = orchEnv.VI_PROVIDER;
-  const wantsEvaluative = responseMode === "evaluative";
+  const wantsEvaluative = input.responseMode === "evaluative";
+  const routerEnabled = orchEnv.VI_MODEL_ROUTER_ENABLED !== "false";
+  const task = routerEnabled ? detectTurnTask(input.message, input.history) : "default";
+
+  const pick = (opts: {
+    base: string;
+    evaluative?: string;
+    reasoning?: string;
+    code?: string;
+    creative?: string;
+  }): string => {
+    if (task === "code" && opts.code) return opts.code;
+    if (task === "creative" && opts.creative) return opts.creative;
+    if (task === "reasoning" && opts.reasoning) return opts.reasoning;
+    if (wantsEvaluative && opts.evaluative) return opts.evaluative;
+    return opts.base;
+  };
+
   if (provider === "vertexai") {
-    return wantsEvaluative
-      ? (orchEnv.VERTEXAI_MODEL_EVALUATIVE ?? orchEnv.VERTEXAI_MODEL)
-      : orchEnv.VERTEXAI_MODEL;
+    return {
+      model: pick({
+        base: orchEnv.VERTEXAI_MODEL,
+        evaluative: orchEnv.VERTEXAI_MODEL_EVALUATIVE,
+        reasoning: orchEnv.VERTEXAI_MODEL_REASONING,
+        code: orchEnv.VERTEXAI_MODEL_CODE,
+        creative: orchEnv.VERTEXAI_MODEL_CREATIVE,
+      }),
+      task,
+    };
   }
   if (provider === "xai") {
-    return wantsEvaluative ? (orchEnv.XAI_MODEL_EVALUATIVE ?? orchEnv.XAI_MODEL) : orchEnv.XAI_MODEL;
+    return {
+      model: pick({
+        base: orchEnv.XAI_MODEL,
+        evaluative: orchEnv.XAI_MODEL_EVALUATIVE,
+        reasoning: orchEnv.XAI_MODEL_REASONING,
+        code: orchEnv.XAI_MODEL_CODE,
+        creative: orchEnv.XAI_MODEL_CREATIVE,
+      }),
+      task,
+    };
   }
   if (provider === "gemini") {
-    return wantsEvaluative
-      ? (orchEnv.GEMINI_MODEL_EVALUATIVE ?? orchEnv.GEMINI_MODEL)
-      : orchEnv.GEMINI_MODEL;
+    return {
+      model: pick({
+        base: orchEnv.GEMINI_MODEL,
+        evaluative: orchEnv.GEMINI_MODEL_EVALUATIVE,
+        reasoning: orchEnv.GEMINI_MODEL_REASONING,
+        code: orchEnv.GEMINI_MODEL_CODE,
+        creative: orchEnv.GEMINI_MODEL_CREATIVE,
+      }),
+      task,
+    };
   }
-  return wantsEvaluative ? (orchEnv.OPENAI_MODEL_EVALUATIVE ?? orchEnv.OPENAI_MODEL) : orchEnv.OPENAI_MODEL;
+  return {
+    model: pick({
+      base: orchEnv.OPENAI_MODEL,
+      evaluative: orchEnv.OPENAI_MODEL_EVALUATIVE,
+      reasoning: orchEnv.OPENAI_MODEL_REASONING,
+      code: orchEnv.OPENAI_MODEL_CODE,
+      creative: orchEnv.OPENAI_MODEL_CREATIVE,
+    }),
+    task,
+  };
 }
 
 export async function generateReply(
@@ -83,7 +164,20 @@ export async function generateReply(
     { role: "user" as const, content: message },
   ];
 
-  const selectedModel = selectModelForTurn(options?.responseMode);
+  const selection = selectModelForTurn({
+    responseMode: options?.responseMode,
+    message,
+    history,
+  });
+  const selectedModel = selection.model;
+  if (orchEnv.VI_DEBUG_CONTEXT === "true") {
+    console.log("[VI_MODEL_ROUTER]", {
+      provider: adapter.name,
+      task: selection.task,
+      selectedModel,
+      responseMode: options?.responseMode ?? "descriptive",
+    });
+  }
   const result = await adapter.generateReply(messages, { model: selectedModel });
   return {
     text: result.text,

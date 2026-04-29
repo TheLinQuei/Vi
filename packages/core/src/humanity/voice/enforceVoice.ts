@@ -22,6 +22,7 @@ export function enforceVoiceReply(
     };
   },
 ): string {
+  const smartCoreProfile = isSmartCoreProfileEnabled();
   const original = raw.trim();
   if (!original) return "";
   const safetyOverride = enforceSafetyContractOverride(options?.userMessage);
@@ -81,10 +82,12 @@ export function enforceVoiceReply(
   s = cleanupBrokenFragments(s);
   s = enforceEvaluativeStance(s, options?.humanity, options?.stance, options?.userMessage);
   s = enforceMarketFreshnessGuard(s, options?.userMessage);
-  s = enforceStrictSourceOrIdk(s, options?.userMessage);
-  s = applyStyleByPostureAndContext(s, options?.userMessage, options?.humanity?.posture);
-  s = softenOverlyMechanicalConversationalReply(s, options?.userMessage, options?.humanity?.posture);
-  s = maybeAddLightCuriosityFollowUp(s, options?.userMessage, options?.humanity?.posture);
+  if (!smartCoreProfile) {
+    s = enforceStrictSourceOrIdk(s, options?.userMessage);
+    s = applyStyleByPostureAndContext(s, options?.userMessage, options?.humanity?.posture);
+    s = softenOverlyMechanicalConversationalReply(s, options?.userMessage, options?.humanity?.posture);
+    s = maybeAddLightCuriosityFollowUp(s, options?.userMessage, options?.humanity?.posture);
+  }
   s = enforceOffscreenGroundingGate(s, options?.userMessage, options?.continuity?.hasIdleReflectionMatch);
   s = enforceAttachmentBounds(s);
   s = finalEvaluativeDeflectionScrub(s, options?.humanity, options?.stance);
@@ -98,6 +101,10 @@ export function enforceVoiceReply(
     return original;
   }
   return s.trim();
+}
+
+function isSmartCoreProfileEnabled(): boolean {
+  return (process.env.VI_RUNTIME_PROFILE ?? "balanced").trim().toLowerCase() === "smart_core";
 }
 
 const RE_OFFSCREEN_FIRST_PERSON =

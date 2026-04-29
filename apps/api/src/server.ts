@@ -174,6 +174,11 @@ const VI_GOOGLE_CLIENT_ID = apiEnv.VI_GOOGLE_CLIENT_ID.trim();
 const VI_GOOGLE_CLIENT_SECRET = apiEnv.VI_GOOGLE_CLIENT_SECRET.trim();
 const VI_GOOGLE_REDIRECT_URI = apiEnv.VI_GOOGLE_REDIRECT_URI.trim();
 const VI_GUEST_MESSAGE_LIMIT = apiEnv.VI_GUEST_MESSAGE_LIMIT;
+const VI_RUNTIME_PROFILE = apiEnv.VI_RUNTIME_PROFILE;
+const VI_SMART_CORE_PROFILE = VI_RUNTIME_PROFILE === "smart_core";
+const VI_ALLOW_PROACTIVE_PINGS = apiEnv.VI_ALLOW_PROACTIVE_PINGS !== "false" && !VI_SMART_CORE_PROFILE;
+const VI_INCLUDE_PASSIVE_PENDING_MENTION =
+  apiEnv.VI_INCLUDE_PASSIVE_PENDING_MENTION !== "false" && !VI_SMART_CORE_PROFILE;
 
 type SessionActor = {
   userId: string;
@@ -1396,6 +1401,7 @@ app.get<{ Querystring: { externalId?: string }; Reply: OwnerControlStateResponse
 app.get<{ Querystring: { externalId?: string }; Reply: AutonomyPingResponse }>(
   "/self-model/autonomy-ping",
   async (request): Promise<AutonomyPingResponse> => {
+  if (!VI_ALLOW_PROACTIVE_PINGS) return { ping: null };
   function composeAutonomyPingMessage(next: UserProposedActionV1): string {
     const action = next.nextAction?.trim();
     const lowerTitle = next.title.toLowerCase();
@@ -1873,7 +1879,7 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
 
       const mentionCandidate = passive.pendingReflections.find((p) => p.surfacedAt === null);
       const shouldMentionPending =
-        Boolean(mentionCandidate) && isRelevantForPendingMention(message);
+        VI_INCLUDE_PASSIVE_PENDING_MENTION && Boolean(mentionCandidate) && isRelevantForPendingMention(message);
       const pendingMention =
         shouldMentionPending && mentionCandidate
           ? {
@@ -1914,6 +1920,7 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
       const recallSystemMessages = buildBehaviorSystemMessagesFromUnifiedState({
         unifiedState,
         displayTimeZone: USER_TIMEZONE,
+        includePendingMention: VI_INCLUDE_PASSIVE_PENDING_MENTION,
       });
       const globalContinuitySystemMessage = buildGlobalContinuitySystemMessage({
         globalState: globalStateAfterUserMessage,
