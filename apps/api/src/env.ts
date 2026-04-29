@@ -18,7 +18,8 @@ const ApiEnvSchema = z.object({
   VI_REQUIRE_API_KEY: z.enum(["true", "false"]).default("false"),
   VI_PUBLIC_API_KEY: z.string().default(""),
   VI_OWNER_API_KEY: z.string().default(""),
-  VI_OWNER_EMAIL: z.string().email().default(""),
+  // Empty means "no owner email gate"; must not use `.email().default("")` (invalid email fails parse).
+  VI_OWNER_EMAIL: z.union([z.string().email(), z.literal("")]).default(""),
   VI_SESSION_COOKIE_NAME: z.string().default("vi_session"),
   VI_SESSION_TTL_HOURS: z.coerce.number().int().min(1).default(720),
   VI_SESSION_SECURE: z.enum(["true", "false"]).default("true"),
