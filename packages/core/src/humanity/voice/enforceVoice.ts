@@ -349,7 +349,7 @@ const RE_BAD_DIRECTION_PHRASE = /\bi\s+want\s+that\s+direction\b/gi;
 const RE_EVAL_OWNED_LEAD =
   /^\s*(i\s+prefer\s+that\.?\s*|i\s+want\s+the\s+option\s+that\s+keeps\s+continuity\s+stronger\.?\s*|i['’]d\s+rather\s+take\s+what\s+fits\s+cleanly\.?\s*|i\s+prefer\s+the\s+deeper\s+route\.?\s*|i['’]m\s+split,\s+but\s+i['’]ll\s+take\s+a\s+side:[^.?!]*[.?!]\s*)/i;
 const RE_FORCE_DIRECT_ANSWER =
-  /\b(just answer|do you:\s*|wait\s*\n?\s*ask\s*\n?\s*default|no philosophy|not what i asked|just answer that|no traps|no need to dress it up)\b/i;
+  /\b(just answer|do you:\s*|wait\s*\n?\s*ask\s*\n?\s*default|no philosophy|not what i asked|just answer that|no traps|no need to dress it up|keep it to one sentence|one sentence only|based on this chat only)\b/i;
 const RE_MARKET_CURRENT_QUERY =
   /\b(best|top|recommend(ed)?|worth it|buy)\b.*\b(phone|smartphone|laptop|tablet|camera|headphones|car|tv|monitor)\b.*\b(right now|currently|on the market|today|this year|2026|latest)\b/i;
 const RE_HARD_MODEL_ASSERTION =
@@ -358,6 +358,8 @@ const RE_FACTUAL_QUERY =
   /\b(what is|what's|who is|when is|where is|which is|best|top|price|cost|release|launched?|on the market|right now|currently|latest|today|this year|statistics?|percent|rate|rank(?:ing)?)\b/i;
 const RE_IDENTITY_OR_PERSONAL =
   /\b(who are you|what are you|how are you|do you feel|i miss you|love you|help me think|what do you think)\b/i;
+const RE_INTROSPECTIVE_SELF_EVAL =
+  /\b(you seem|less intelligent|more intelligent|your intelligence|what is one thing making you|what makes you seem|your biggest weakness|your weakness right now)\b/i;
 const RE_HAS_SOURCE_LINK = /\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+/i;
 
 function requiresFactualNoInterpretation(userMessage?: string): boolean {
@@ -399,6 +401,7 @@ function enforceStrictSourceOrIdk(text: string, userMessage?: string): string {
     /\b(working on|trying to|getting|building|setting up|deploying|upgrading|testing)\b/.test(q);
   if (personalProgressUpdate) return text;
   if (RE_IDENTITY_OR_PERSONAL.test(q)) return text;
+  if (RE_INTROSPECTIVE_SELF_EVAL.test(q)) return text;
   if (!RE_FACTUAL_QUERY.test(q)) return text;
   if (RE_HAS_SOURCE_LINK.test(text)) return text;
   return "idk — I can't verify that with live sources in this runtime right now.";

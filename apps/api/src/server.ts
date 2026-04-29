@@ -814,6 +814,16 @@ function inferFocusTermsFromMessages(
     .map(([t]) => t);
 }
 
+function isModeCheckQuestion(message: string): boolean {
+  const q = message.toLowerCase().trim();
+  return (
+    /\b(owner mode|guest mode)\b/.test(q) ||
+    /\bam i (in|on)\b.*\b(owner|guest)\b/.test(q) ||
+    /\bwhat mode am i\b/.test(q) ||
+    /\bwhich mode\b/.test(q)
+  );
+}
+
 function buildMemoryPinsFromMessages(input: {
   sessionId: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
@@ -1696,6 +1706,52 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
             viName: "vi",
           });
       const user = await getOrCreateUserByExternalId(resolvedExternalId);
+      if (isModeCheckQuestion(message)) {
+        const modeReply =
+          actorRole === "owner"
+            ? "You are in owner mode right now."
+            : "You are in guest mode right now.";
+        const modeSession = request.body.sessionId?.trim()
+          ? (await getSessionForUser(request.body.sessionId.trim(), user.id)) ?? (await createSession(user.id))
+          : await createSession(user.id);
+        const userRow = await createUserMessageAndMarkTurn({
+          turnId: (
+            await createTurnJournal({
+              sessionId: modeSession.id,
+              phase: "received",
+              status: "in_progress",
+              wallNowUtcIso: new Date().toISOString(),
+              wallNowEpochMs: Date.now(),
+            })
+          ).id,
+          sessionId: modeSession.id,
+          content: message,
+        });
+        const assistantRow = await createAssistantMessageAndMarkTurn({
+          turnId: (
+            await createTurnJournal({
+              sessionId: modeSession.id,
+              phase: "assistant_saved",
+              status: "in_progress",
+              wallNowUtcIso: new Date().toISOString(),
+              wallNowEpochMs: Date.now(),
+            })
+          ).id,
+          sessionId: modeSession.id,
+          content: modeReply,
+          model: "routing:mode-check-v1",
+          finalPhase: "state_saved",
+        });
+        return {
+          reply: modeReply,
+          sessionId: modeSession.id,
+          chronos: {
+            serverNow: new Date().toISOString(),
+            userMessageAt: userRow.createdAt.toISOString(),
+            assistantMessageAt: assistantRow.createdAt.toISOString(),
+          },
+        };
+      }
       const override = parseOverrideContext(request.body.context);
       if (override && actorRole !== "owner") {
         reply.code(403);
