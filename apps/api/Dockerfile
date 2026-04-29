@@ -19,7 +19,7 @@ COPY apps/api apps/api
 COPY packages packages
 
 ENV NODE_ENV=production
-# Cloud Run sets PORT; API listens on API_PORT (8080 matches common Run defaults; local dev uses 3001 from .env)
+# Default when PORT is unset (local). Cloud Run injects PORT — server prefers it over API_PORT.
 ENV API_PORT=8080
 
 CMD ["pnpm", "--filter", "@vi/api", "start"]

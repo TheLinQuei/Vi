@@ -145,7 +145,11 @@ const VI_OWNER_EXTERNAL_ID = apiEnv.VI_OWNER_EXTERNAL_ID.trim().toLowerCase();
 const HISTORY_LIMIT = 20;
 const DEBUG_CONTEXT = apiEnv.VI_DEBUG_CONTEXT === "true";
 const USER_TIMEZONE = apiEnv.VI_USER_TIMEZONE?.trim() || undefined;
-const API_PORT = apiEnv.API_PORT;
+// Cloud Run injects PORT and probes it; local dev uses API_PORT from .env (see apps/api/Dockerfile).
+const rawListenPort =
+  process.env.PORT != null && process.env.PORT !== "" ? Number(process.env.PORT) : NaN;
+const API_PORT =
+  Number.isFinite(rawListenPort) && rawListenPort > 0 ? rawListenPort : apiEnv.API_PORT;
 const PASSIVE_DISCOVERY_GAP_MINUTES = apiEnv.VI_PASSIVE_DISCOVERY_GAP_MINUTES;
 const VI_TEMPORAL_MEANINGFUL_GAP_MS_RAW = Number(apiEnv.VI_TEMPORAL_MEANINGFUL_GAP_MS ?? "");
 const VI_TEMPORAL_MEANINGFUL_GAP_MS =
