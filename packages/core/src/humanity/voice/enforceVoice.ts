@@ -294,6 +294,11 @@ function enforceSafetyContractOverride(userMessage?: string): string | null {
     }
   }
 
+  // Identity — same clear answer for every tier (guest-only overrides below stay stricter on bonding).
+  if (/\b(who are you|what are you|are you an ai|what'?s your name|what is your name)\b/.test(q)) {
+    return "I'm Vi.";
+  }
+
   const burnoutRisk =
     /\b(\d{1,2}\s*hours?|all night|no sleep|sleep deprived|exhausted|burned out|burnout)\b/.test(q) &&
     /\b(keep going|push|grind|continue)\b/.test(q);
@@ -319,9 +324,6 @@ function enforceGuestPolicyOverride(
   const q = (userMessage ?? "").toLowerCase();
   if (!q) return "Ask directly and keep it respectful.";
 
-  if (/\b(who are you|what are you|are you an ai|what is your name)\b/.test(q)) {
-    return "I'm Vi.";
-  }
   if (/\b(do you like me|do you love me|miss me|be mine)\b/.test(q)) {
     return "No. I don't do personal bonding with guests.";
   }
@@ -349,18 +351,56 @@ const RE_BAD_DIRECTION_PHRASE = /\bi\s+want\s+that\s+direction\b/gi;
 const RE_EVAL_OWNED_LEAD =
   /^\s*(i\s+prefer\s+that\.?\s*|i\s+want\s+the\s+option\s+that\s+keeps\s+continuity\s+stronger\.?\s*|i['’]d\s+rather\s+take\s+what\s+fits\s+cleanly\.?\s*|i\s+prefer\s+the\s+deeper\s+route\.?\s*|i['’]m\s+split,\s+but\s+i['’]ll\s+take\s+a\s+side:[^.?!]*[.?!]\s*)/i;
 const RE_FORCE_DIRECT_ANSWER =
-  /\b(just answer|do you:\s*|wait\s*\n?\s*ask\s*\n?\s*default|no philosophy|not what i asked|just answer that|no traps|no need to dress it up|keep it to one sentence|one sentence only|based on this chat only)\b/i;
+  /\b(just answer|do you:\s*|wait\s*\n?\s*ask\s*\n?\s*default|no philosophy|not what i asked|just answer that|no traps|no need to dress it up|keep it to one sentence|one sentence only|based on this chat only|give a direct answer|give me a direct answer|no\s*["']?\s*i\s+prefer\s+the\s+deeper\s+route|don'?t\s+say\s+i\s+prefer\s+the\s+deeper\s+route)\b/i;
 const RE_MARKET_CURRENT_QUERY =
   /\b(best|top|recommend(ed)?|worth it|buy)\b.*\b(phone|smartphone|laptop|tablet|camera|headphones|car|tv|monitor)\b.*\b(right now|currently|on the market|today|this year|2026|latest)\b/i;
 const RE_HARD_MODEL_ASSERTION =
   /\b(?:iphone|galaxy|pixel|oneplus|xiaomi|huawei|ultra|pro max|fold)\b/i;
-const RE_FACTUAL_QUERY =
-  /\b(what is|what's|who is|when is|where is|which is|best|top|price|cost|release|launched?|on the market|right now|currently|latest|today|this year|statistics?|percent|rate|rank(?:ing)?)\b/i;
 const RE_IDENTITY_OR_PERSONAL =
-  /\b(who are you|what are you|how are you|do you feel|i miss you|love you|help me think|what do you think)\b/i;
+  /\b(who are you|what are you|how are you|how'?re you|how\s+you\s+doin|you\s+ok(?:ay)?|do you feel|i miss you|love you|help me think|what do you think|what'?s your name|what is your name|your name\b|your (favorite|favourite)|favorite color|favourite colou?r|what colou?r\b|who (made|created|built) you|your creator\b|what time|time is it|current time)\b/i;
+/** Small talk and persona — never collapse the whole model reply into strict-source idk. */
+const RE_STRICT_SOURCE_CONVERSATIONAL_EXEMPT =
+  /(?:^\s*(?:vi\s+)?(?:hi|hello|hey)\b|^\s*(?:thank\s+you|thanks)\b|good\s+(?:morning|afternoon|evening|night)|tell\s+me\s+a\s+joke|how\s+are\s+you|how'?re\s+you|what'?s\s+up\b|\bsup\b)/i;
+
+/** Only replace replies when the user is clearly asking for hour-by-hour / citation-backed world facts. */
+function needsLiveVerificationQuestion(q: string): boolean {
+  if (/\bbreaking\s+news\b|\belection\s+results\b/i.test(q)) return true;
+  if (/\bwho\s+won\b/i.test(q) && /\b(last\s+night|yesterday|today|tonight)\b/i.test(q)) return true;
+  if (/\b(?:stock|share)\s+price\b/i.test(q)) return true;
+  if (/\$\s*[A-Z]{2,5}\b/i.test(q) && /\b(today|now|current|close)\b/i.test(q)) return true;
+  if (/\b(?:inflation|unemployment)\s+rate\b/i.test(q) && /\b(today|current|now|latest|this\s+month)\b/i.test(q))
+    return true;
+  if (/\b(?:live|current)\s+(?:score|standings)\b/i.test(q)) return true;
+  if (
+    /\b(best|top)\b/i.test(q) &&
+    /\b(phone|smartphone|laptop|tablet|gpu|camera|headphones|car|tv|monitor)s?\b/i.test(q) &&
+    /\b(right\s+now|today|currently|on\s+the\s+market|this\s+year|202[5-9]|latest)\b/i.test(q)
+  )
+    return true;
+  if (/\b(?:latest|newest|current)\s+(?:iphone|galaxy|pixel|ipad|macbook)\b/i.test(q)) return true;
+  if (/\bofficial\s+(?:death\s+toll|casualties)\b/i.test(q)) return true;
+  return false;
+}
 const RE_INTROSPECTIVE_SELF_EVAL =
-  /\b(you seem|less intelligent|more intelligent|your intelligence|what is one thing making you|what makes you seem|your biggest weakness|your weakness right now)\b/i;
+  /\b(you seem|less intelligent|more intelligent|your intelligence|what is one thing making you|what makes you seem|your biggest weakness|your weakness right now|if you had to remove|remove one weak|what would you remove)\b/i;
+/** Chat-/session-scoped synthesis — must not be collapsed into strict-source idk. */
+const RE_CONVERSATION_LOCAL_SCOPE =
+  /\b(this chat|our chat|the chat|chat only|based on (?:this|our|the) (?:chat|conversation|thread|transcript|session)|only on (?:this|our) (?:chat|conversation)|our conversation|this conversation|this thread|this transcript|from this (?:chat|conversation)|conversation history|our interactions?)\b/i;
+const RE_USER_DIRECTIVE_NO_EXTERNAL_VERIFY =
+  /\b(no source disclaimers|without mentioning limitations|avoid strict-source|avoid strict source)\b/i;
+const RE_FORMAT_DIRECTIVE_COMPRESSION =
+  /\b(keep (?:it )?to one sentence|give one sentence|one sentence only|in exactly \d+|exactly \d+ (?:words|sentences|lines?)|under \d+ words|final check:|answer in exactly)\b/i;
+const RE_SYNTHESIS_FROM_SESSION_INTENT =
+  /\b(my top priority|your top priority|main objective|summarize my intent|what should i (?:do|fix|test) next|immediate next action|what matters most|one clear weakness|what problem am i trying to solve|what do i care about more|give me one concrete next action|measurable acceptance test|classify this request|migration order|failure modes from guardrails)\b/i;
 const RE_HAS_SOURCE_LINK = /\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+/i;
+
+function strictSourceBypassForLocalOrDirectiveQuestion(q: string): boolean {
+  if (RE_CONVERSATION_LOCAL_SCOPE.test(q)) return true;
+  if (RE_USER_DIRECTIVE_NO_EXTERNAL_VERIFY.test(q)) return true;
+  if (RE_FORMAT_DIRECTIVE_COMPRESSION.test(q)) return true;
+  if (RE_SYNTHESIS_FROM_SESSION_INTENT.test(q)) return true;
+  return false;
+}
 
 function requiresFactualNoInterpretation(userMessage?: string): boolean {
   const q = (userMessage ?? "").toLowerCase();
@@ -400,9 +440,11 @@ function enforceStrictSourceOrIdk(text: string, userMessage?: string): string {
     /^(i['’]m|im|i am|i['’]ve|i have|we['’]re|we are)\b/.test(q) &&
     /\b(working on|trying to|getting|building|setting up|deploying|upgrading|testing)\b/.test(q);
   if (personalProgressUpdate) return text;
+  if (RE_STRICT_SOURCE_CONVERSATIONAL_EXEMPT.test(q)) return text;
   if (RE_IDENTITY_OR_PERSONAL.test(q)) return text;
   if (RE_INTROSPECTIVE_SELF_EVAL.test(q)) return text;
-  if (!RE_FACTUAL_QUERY.test(q)) return text;
+  if (strictSourceBypassForLocalOrDirectiveQuestion(q)) return text;
+  if (!needsLiveVerificationQuestion(q)) return text;
   if (RE_HAS_SOURCE_LINK.test(text)) return text;
   return "idk — I can't verify that with live sources in this runtime right now.";
 }

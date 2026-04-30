@@ -814,14 +814,25 @@ function inferFocusTermsFromMessages(
     .map(([t]) => t);
 }
 
-function isModeCheckQuestion(message: string): boolean {
+function modeShortcutReply(message: string, actorRole: "owner" | "guest"): string | null {
   const q = message.toLowerCase().trim();
-  return (
+  if (
+    /\b(?:respond|reply|answer)\s+with\s+exactly\s+[`'"]?owner[`'"]?\s+or\s+[`'"]?guest\b/.test(q) ||
+    /\b(?:say|respond)\s+exactly\s+[`'"]?owner[`'"]?\s+or\s+[`'"]?guest\b/.test(q)
+  ) {
+    return actorRole === "owner" ? "owner" : "guest";
+  }
+  if (
     /\b(owner mode|guest mode)\b/.test(q) ||
     /\bam i (in|on)\b.*\b(owner|guest)\b/.test(q) ||
     /\bwhat mode am i\b/.test(q) ||
     /\bwhich mode\b/.test(q)
-  );
+  ) {
+    return actorRole === "owner"
+      ? "You are in owner mode right now."
+      : "You are in guest mode right now.";
+  }
+  return null;
 }
 
 function buildMemoryPinsFromMessages(input: {
@@ -1706,11 +1717,9 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
             viName: "vi",
           });
       const user = await getOrCreateUserByExternalId(resolvedExternalId);
-      if (isModeCheckQuestion(message)) {
-        const modeReply =
-          actorRole === "owner"
-            ? "You are in owner mode right now."
-            : "You are in guest mode right now.";
+      const shortcutReply = modeShortcutReply(message, actorRole);
+      if (shortcutReply !== null) {
+        const modeReply = shortcutReply;
         const modeSession = request.body.sessionId?.trim()
           ? (await getSessionForUser(request.body.sessionId.trim(), user.id)) ?? (await createSession(user.id))
           : await createSession(user.id);
