@@ -28,6 +28,12 @@ import {
 } from "@vi/core/time/temporalInternalState";
 import { buildBehaviorSystemMessagesFromUnifiedState } from "./chat/behaviorSystemMessages.js";
 import { deriveTurnUnifiedStateV1 } from "./chat/deriveUnifiedState.js";
+import {
+  buildDiscordMentionResolutionSystemMessage,
+  parseDiscordResolvedMentions,
+} from "./chat/discordContextHints.js";
+import { maybeExecuteToolEnvelope } from "./chat/toolEnvelopeExecutor.js";
+import { parseMultimodalImageUrls, parseViToolingContext, parseViTurnRouting } from "./chat/viTurnContext.js";
 import { inferAddressedToVi, parseMixedEnvironmentContext } from "./chat/addresseeRouting.js";
 import { buildOnboardingV1SystemMessage, parseOnboardingV1FromContext } from "./chat/onboardingContext.js";
 import {
@@ -1129,7 +1135,15 @@ app.get<{ Reply: AdapterContractResponse }>("/self-model/adapter-contract", asyn
     chat: {
       route: "/chat",
       allowedTopLevelKeys: ["message", "sessionId", "context"],
-      allowedContextKeys: ["actorExternalId", "override", "onboardingV1"],
+      allowedContextKeys: [
+        "actorExternalId",
+        "override",
+        "onboardingV1",
+        "discord",
+        "vi",
+        "source",
+        "vigilUserId",
+      ],
       forbiddenKeys: [...FORBIDDEN_ADAPTER_KEYS],
       overrideShape: {
         allowed: true,
@@ -1995,8 +2009,14 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
       const onboardingSystem = obHint
         ? { role: "system" as const, content: buildOnboardingV1SystemMessage(obHint) }
         : null;
+      const discordMentionHint = buildDiscordMentionResolutionSystemMessage(
+        parseDiscordResolvedMentions(request.body.context),
+      );
+      const discordMentionSystem =
+        discordMentionHint != null ? ([{ role: "system" as const, content: discordMentionHint }] as const) : [];
       const mergedSystemMessages = [
         globalContinuitySystemMessage,
+        ...discordMentionSystem,
         ...(onboardingSystem ? [onboardingSystem] : []),
         ...(liveWebSources.length > 0
           ? [
@@ -2018,6 +2038,13 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
         console.log("[VI_RECALL]", { sessionId: session.id, blocks: recallSystemMessages.length });
       }
 
+      const imageUrls = parseMultimodalImageUrls(request.body.context);
+      const routingHint = parseViTurnRouting(request.body.context);
+      const toolingHint = parseViToolingContext(request.body.context);
+      const preferOpenWeights =
+        routingHint.preferOpenWeights &&
+        (actorRole === "owner" || apiEnv.VI_OSS_ALLOW_GUEST === "true");
+
       const turnResult = await runTurn({
         message:
           overrideAuthorized && override
@@ -2026,6 +2053,15 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
         history,
         rollingSummary,
         recallSystemMessages: mergedSystemMessages,
+        media: imageUrls.length > 0 ? { imageUrls } : undefined,
+        routing: preferOpenWeights ? { preferOpenWeights: true } : undefined,
+        tools: {
+          webSearchEnabled: toolingHint.webSearchEnabled,
+          docsSearchEnabled: toolingHint.docsSearchEnabled,
+          connectorsEnabled: toolingHint.connectorsEnabled,
+          mediaGenerationEnabled: toolingHint.mediaGenerationEnabled,
+        },
+        voice: { inputMode: toolingHint.voiceInputMode },
         humanity: {
           wantsIntent: unifiedState.humanity.interpretation.wantsIntent,
           responseMode: unifiedState.effectiveResponseMode,
@@ -2044,6 +2080,19 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
         userMessageId: userRow.id,
       });
       let aiReply = turnResult.reply;
+      const toolExec = await maybeExecuteToolEnvelope({
+        replyText: aiReply,
+        actorExternalId: resolvedExternalId,
+        sessionId: session.id,
+        context: request.body.context,
+        mediaWebhookUrl: apiEnv.VI_MEDIA_TOOL_WEBHOOK_URL,
+        mediaWebhookSecret: apiEnv.VI_MEDIA_TOOL_WEBHOOK_SECRET,
+        searchWebhookUrl: apiEnv.VI_SEARCH_TOOL_WEBHOOK_URL,
+        searchWebhookSecret: apiEnv.VI_SEARCH_TOOL_WEBHOOK_SECRET,
+      });
+      if (toolExec.handled) {
+        aiReply = toolExec.userReply;
+      }
       if (marketCurrentQuery) {
         const hasLink = /\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+/i.test(aiReply);
         if (!hasLink || /^idk\b/i.test(aiReply.trim())) {
@@ -2158,7 +2207,9 @@ app.post<{ Body: ChatRequest; Reply: ChatResponse | ChatErrorResponse }>(
       const response: ChatResponse = {
         reply: aiReply,
         sessionId: session.id,
-        ...(turnResult.providerNotice ? { providerNotice: turnResult.providerNotice } : {}),
+        ...(turnResult.providerNotice || toolExec.providerNotice
+          ? { providerNotice: [turnResult.providerNotice, toolExec.providerNotice].filter(Boolean).join(" | ") }
+          : {}),
         chronos: {
           serverNow: clock.utc,
           userMessageAt: userRow.createdAt.toISOString(),

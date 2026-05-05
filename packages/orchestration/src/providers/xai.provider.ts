@@ -36,7 +36,7 @@ export class XAIProvider implements ProviderAdapter {
     try {
       const completion = await this.client.chat.completions.create({
         model,
-        messages,
+        messages: messages as never,
         temperature: options?.temperature,
         max_tokens: options?.maxTokens,
       });
@@ -48,7 +48,7 @@ export class XAIProvider implements ProviderAdapter {
       const fallbackModel = this.fallbackModel;
       const fallback = await this.fallbackClient.chat.completions.create({
         model: fallbackModel,
-        messages,
+        messages: messages as never,
         temperature: options?.temperature,
         max_tokens: options?.maxTokens,
       });

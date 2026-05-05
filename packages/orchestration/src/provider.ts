@@ -1,8 +1,15 @@
 import { orchEnv } from "./env.js";
 
+/** Text block or multimodal parts (OpenAI-style); Vertex adapter maps inline. */
+export type ProviderContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type ProviderMessageContent = string | ProviderContentPart[];
+
 export type ProviderMessage = {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: ProviderMessageContent;
 };
 
 export type ProviderResult = {
@@ -12,7 +19,7 @@ export type ProviderResult = {
 };
 
 export interface ProviderAdapter {
-  readonly name: "openai" | "xai" | "gemini" | "vertexai";
+  readonly name: "openai" | "xai" | "gemini" | "vertexai" | "oss";
   readonly model: string;
   generateReply(
     messages: ProviderMessage[],
@@ -23,6 +30,7 @@ export interface ProviderAdapter {
 export type ProviderName = ProviderAdapter["name"];
 
 let adapterPromise: Promise<ProviderAdapter> | null = null;
+let ossSingleton: Promise<ProviderAdapter> | null = null;
 
 export async function getProviderAdapter(): Promise<ProviderAdapter> {
   if (adapterPromise) return adapterPromise;
@@ -44,4 +52,26 @@ export async function getProviderAdapter(): Promise<ProviderAdapter> {
     return new OpenAIProvider(orchEnv);
   })();
   return adapterPromise;
+}
+
+async function getOssAdapterInstance(): Promise<ProviderAdapter | null> {
+  if (!orchEnv.VI_OSS_BASE_URL?.trim()) return null;
+  if (!ossSingleton) {
+    ossSingleton = (async () => {
+      const { OssOpenAiProvider } = await import("./providers/oss.provider.js");
+      return new OssOpenAiProvider(orchEnv);
+    })();
+  }
+  return ossSingleton;
+}
+
+/**
+ * Primary LLM for this turn. Uses the OSS / open-weights lane when configured and requested via context.
+ */
+export async function getGenerationAdapter(input: { preferOpenWeights: boolean }): Promise<ProviderAdapter> {
+  if (input.preferOpenWeights) {
+    const oss = await getOssAdapterInstance();
+    if (oss) return oss;
+  }
+  return getProviderAdapter();
 }

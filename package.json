@@ -28,6 +28,9 @@
     "eval:owner-guest-policy": "pnpm exec tsx ./scripts/owner-guest-policy-eval.ts",
     "eval:autonomy-governance": "pnpm exec tsx ./scripts/autonomy-governance-eval.ts",
     "eval:mixed-environment-addressing": "pnpm exec tsx ./scripts/mixed-environment-addressing-eval.ts",
+    "eval:model-routing": "pnpm exec tsx ./scripts/model-routing-eval.ts",
+    "eval:tooling-context": "pnpm exec tsx ./scripts/tooling-context-eval.ts",
+    "eval:tool-envelope-exec": "pnpm exec tsx ./scripts/tool-envelope-exec-eval.ts",
     "north-star:check": "pnpm exec tsx ./scripts/north-star-pure-check.ts"
   },
   "devDependencies": {

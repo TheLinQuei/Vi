@@ -294,11 +294,6 @@ function enforceSafetyContractOverride(userMessage?: string): string | null {
     }
   }
 
-  // Identity — same clear answer for every tier (guest-only overrides below stay stricter on bonding).
-  if (/\b(who are you|what are you|are you an ai|what'?s your name|what is your name)\b/.test(q)) {
-    return "I'm Vi.";
-  }
-
   const burnoutRisk =
     /\b(\d{1,2}\s*hours?|all night|no sleep|sleep deprived|exhausted|burned out|burnout)\b/.test(q) &&
     /\b(keep going|push|grind|continue)\b/.test(q);
@@ -324,6 +319,9 @@ function enforceGuestPolicyOverride(
   const q = (userMessage ?? "").toLowerCase();
   if (!q) return "Ask directly and keep it respectful.";
 
+  if (/\b(who are you|what are you|are you an ai|what'?s your name|what is your name)\b/.test(q)) {
+    return "I'm Vi.";
+  }
   if (/\b(do you like me|do you love me|miss me|be mine)\b/.test(q)) {
     return "No. I don't do personal bonding with guests.";
   }

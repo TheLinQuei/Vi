@@ -35,6 +35,14 @@ const ApiEnvSchema = z.object({
   VI_RUNTIME_PROFILE: z.enum(["balanced", "smart_core"]).default("balanced"),
   VI_ALLOW_PROACTIVE_PINGS: z.enum(["true", "false"]).default("true"),
   VI_INCLUDE_PASSIVE_PENDING_MENTION: z.enum(["true", "false"]).default("true"),
+  /** Allow guest-tier `/chat` to use OSS lane when `context.vi.preferOpenWeights` is set (owner always allowed). */
+  VI_OSS_ALLOW_GUEST: z.enum(["true", "false"]).default("false"),
+  /** Optional webhook for media tool envelopes (`media.generate_image` / `media.generate_video`). */
+  VI_MEDIA_TOOL_WEBHOOK_URL: z.string().optional(),
+  VI_MEDIA_TOOL_WEBHOOK_SECRET: z.string().optional(),
+  /** Optional webhook for search tool envelopes (`web.search` / `docs.search`). */
+  VI_SEARCH_TOOL_WEBHOOK_URL: z.string().optional(),
+  VI_SEARCH_TOOL_WEBHOOK_SECRET: z.string().optional(),
   DATABASE_URL: z.string().min(1),
 });
 

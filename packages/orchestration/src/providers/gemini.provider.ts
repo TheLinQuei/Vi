@@ -25,7 +25,7 @@ export class GeminiCompatProvider implements ProviderAdapter {
     const model = options?.model ?? this.model;
     const completion = await this.client.chat.completions.create({
       model,
-      messages,
+      messages: messages as never,
       temperature: options?.temperature,
       max_tokens: options?.maxTokens,
     });

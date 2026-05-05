@@ -2,17 +2,24 @@ import OpenAI from "openai";
 import type { OrchestrationEnv } from "../env.js";
 import type { ProviderAdapter, ProviderMessage, ProviderResult } from "../provider.js";
 
-export class OpenAIProvider implements ProviderAdapter {
-  readonly name = "openai" as const;
+/**
+ * OpenAI-compatible HTTP API (vLLM, LiteLLM, Ollama `--api` style servers, Vertex endpoints with compat layer, etc.).
+ */
+export class OssOpenAiProvider implements ProviderAdapter {
+  readonly name = "oss" as const;
   readonly model: string;
   private readonly client: OpenAI;
 
   constructor(env: OrchestrationEnv) {
-    if (!env.OPENAI_API_KEY) {
-      throw new Error("Missing OPENAI_API_KEY for VI_PROVIDER=openai");
+    const base = env.VI_OSS_BASE_URL?.trim();
+    if (!base) {
+      throw new Error("Missing VI_OSS_BASE_URL for OSS provider");
     }
-    this.model = env.OPENAI_MODEL;
-    this.client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    this.model = env.VI_OSS_MODEL;
+    this.client = new OpenAI({
+      apiKey: env.VI_OSS_API_KEY ?? "ollama",
+      baseURL: base.replace(/\/$/, ""),
+    });
   }
 
   async generateReply(
